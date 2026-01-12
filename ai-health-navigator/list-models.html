@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>List Available Models</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+    .success { background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    .error { background: #ffebee; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    button { padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin: 5px; }
+    button:hover { background: #45a049; }
+    .model-item { padding: 15px; margin: 10px 0; background: #f5f5f5; border-radius: 8px; border-left: 4px solid #4caf50; }
+    .model-item h3 { margin-top: 0; color: #2e7d32; }
+    .test-btn { background: #2196f3; padding: 8px 16px; font-size: 14px; }
+    .test-btn:hover { background: #1976d2; }
+    pre { background: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>📋 List Available Models for Your API Key</h1>
+  <p>This will show you exactly which models your API key can access.</p>
+  
+  <button id="listBtn">List All Available Models</button>
+  <div id="result"></div>
+
+  <script>
+    const API_KEY = "AIzaSyAMS3Lg483T8B2UWbE_HbfQoozujLvdGVI";
+    
+    document.getElementById('listBtn').addEventListener('click', async () => {
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = '<p>Loading models...</p>';
+
+      const versions = ['v1beta', 'v1'];
+      let allResults = '';
+
+      for (const version of versions) {
+        try {
+          const listUrl = `https://generativelanguage.googleapis.com/${version}/models?key=${API_KEY}`;
+          const response = await fetch(listUrl);
+          const data = await response.json();
+
+          if (response.ok && data.models) {
+            const modelsWithGenerate = data.models.filter(m => 
+              m.supportedGenerationMethods?.includes('generateContent')
+            );
+            
+            allResults += `
+              <div class="success">
+                <h2>✅ ${version.toUpperCase()} - Found ${modelsWithGenerate.length} models with generateContent</h2>
+                <div id="models-${version}"></div>
+              </div>
+            `;
+
+            const modelsDiv = document.createElement('div');
+            modelsDiv.id = `models-${version}`;
+            
+            modelsWithGenerate.forEach(model => {
+              const modelName = model.name.replace('models/', '');
+              const modelDiv = document.createElement('div');
+              modelDiv.className = 'model-item';
+              modelDiv.innerHTML = `
+                <h3>${modelName}</h3>
+                <p><strong>Full Name:</strong> ${model.name}</p>
+                <p><strong>Display Name:</strong> ${model.displayName || 'N/A'}</p>
+                <p><strong>Description:</strong> ${model.description || 'N/A'}</p>
+                <button class="test-btn" onclick="testModel('${version}', '${modelName}')">Test This Model</button>
+              `;
+              modelsDiv.appendChild(modelDiv);
+            });
+
+            resultDiv.innerHTML = allResults;
+            document.getElementById(`models-${version}`).innerHTML = modelsDiv.innerHTML;
+          } else {
+            allResults += `
+              <div class="error">
+                <h2>❌ ${version.toUpperCase()} Failed</h2>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+              </div>
+            `;
+            resultDiv.innerHTML = allResults;
+          }
+        } catch (error) {
+          allResults += `
+            <div class="error">
+              <h2>❌ ${version.toUpperCase()} Error</h2>
+              <p>${error.message}</p>
+            </div>
+          `;
+          resultDiv.innerHTML = allResults;
+        }
+      }
+    });
+
+    async function testModel(version, modelName) {
+      const resultDiv = document.getElementById('result');
+      const testDiv = document.createElement('div');
+      testDiv.className = 'model-item';
+      testDiv.style.background = '#fff3e0';
+      testDiv.innerHTML = `<p>Testing ${version}/${modelName}...</p>`;
+      resultDiv.appendChild(testDiv);
+
+      try {
+        const apiUrl = `https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${API_KEY}`;
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: "Say 'Hello, this model works!' if you can read this."
+              }]
+            }]
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.candidates && data.candidates.length > 0) {
+          testDiv.className = 'model-item';
+          testDiv.style.background = '#e8f5e9';
+          testDiv.style.borderLeftColor = '#4caf50';
+          testDiv.innerHTML = `
+            <h3>✅ SUCCESS! ${version}/${modelName} WORKS!</h3>
+            <p><strong>Response:</strong> ${data.candidates[0].content.parts[0].text}</p>
+            <p><strong>Use this in your code:</strong></p>
+            <pre>const apiUrl = \`https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=\${GEMINI_API_KEY}\`;</pre>
+            <p style="color: green; font-weight: bold;">This is the working configuration! I'll update all your files now.</p>
+          `;
+          
+          // Store working config
+          window.workingConfig = { version, model: modelName };
+        } else {
+          testDiv.className = 'model-item';
+          testDiv.style.background = '#ffebee';
+          testDiv.style.borderLeftColor = '#f44336';
+          testDiv.innerHTML = `
+            <h3>❌ ${version}/${modelName} Failed</h3>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+        }
+      } catch (error) {
+        testDiv.className = 'model-item';
+        testDiv.style.background = '#ffebee';
+        testDiv.style.borderLeftColor = '#f44336';
+        testDiv.innerHTML = `
+          <h3>❌ Error testing ${version}/${modelName}</h3>
+          <p>${error.message}</p>
+        `;
+      }
+    }
+
+    window.testModel = testModel;
+  </script>
+</body>
+</html>
+
+

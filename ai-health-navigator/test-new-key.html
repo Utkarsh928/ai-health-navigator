@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test New API Key</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+    .success { background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    .error { background: #ffebee; color: #c62828; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    .testing { background: #fff3e0; color: #f57c00; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    button { padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+    button:hover { background: #45a049; }
+    pre { background: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Testing Your New API Key</h1>
+  <p>Testing API key: <strong>AIzaSyAMS3Lg483T8B2UWbE_HbfQoozujLvdGVI</strong></p>
+  
+  <button id="testBtn">Test API Key</button>
+  <div id="result"></div>
+
+  <script>
+    const NEW_API_KEY = "AIzaSyAMS3Lg483T8B2UWbE_HbfQoozujLvdGVI";
+    
+    document.getElementById('testBtn').addEventListener('click', async () => {
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = '<div class="testing">Testing API key...</div>';
+
+      // Test different API versions and models
+      const tests = [
+        { version: 'v1beta', model: 'gemini-pro' },
+        { version: 'v1beta', model: 'gemini-1.5-pro' },
+        { version: 'v1beta', model: 'gemini-1.5-flash' },
+        { version: 'v1', model: 'gemini-pro' },
+        { version: 'v1', model: 'gemini-1.5-pro' },
+        { version: 'v1', model: 'gemini-1.5-flash' },
+      ];
+
+      let workingConfig = null;
+      let results = '';
+
+      for (const test of tests) {
+        try {
+          const apiUrl = `https://generativelanguage.googleapis.com/${test.version}/models/${test.model}:generateContent?key=${NEW_API_KEY}`;
+          
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: "Say 'Hello, API is working!' if you can read this."
+                }]
+              }]
+            })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.candidates && data.candidates.length > 0) {
+            workingConfig = test;
+            results += `
+              <div class="success">
+                <h3>✅ SUCCESS: ${test.version} / ${test.model}</h3>
+                <p><strong>Response:</strong> ${data.candidates[0].content.parts[0].text}</p>
+                <p><strong>Working URL Pattern:</strong></p>
+                <pre>https://generativelanguage.googleapis.com/${test.version}/models/${test.model}:generateContent?key=YOUR_API_KEY</pre>
+              </div>
+            `;
+            break; // Found working config, stop testing
+          } else {
+            results += `
+              <div class="error">
+                <h3>❌ Failed: ${test.version} / ${test.model}</h3>
+                <p>${data.error?.message || 'Unknown error'}</p>
+              </div>
+            `;
+          }
+        } catch (error) {
+          results += `
+            <div class="error">
+              <h3>❌ Error: ${test.version} / ${test.model}</h3>
+              <p>${error.message}</p>
+            </div>
+          `;
+        }
+      }
+
+      if (workingConfig) {
+        resultDiv.innerHTML = `
+          <div class="success">
+            <h2>🎉 API Key is Working!</h2>
+            <p><strong>Working Configuration:</strong></p>
+            <ul>
+              <li>Version: ${workingConfig.version}</li>
+              <li>Model: ${workingConfig.model}</li>
+            </ul>
+            <p>I'll now update all your project files to use this configuration.</p>
+          </div>
+          ${results}
+        `;
+        
+        // Store working config for next step
+        window.workingConfig = workingConfig;
+      } else {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <h2>❌ No Working Configuration Found</h2>
+            <p>Please check:</p>
+            <ul>
+              <li>Is the Generative Language API enabled in Google Cloud?</li>
+              <li>Is the API key correct?</li>
+              <li>Does the API key have proper permissions?</li>
+            </ul>
+          </div>
+          ${results}
+        `;
+      }
+    });
+  </script>
+</body>
+</html>
+
+

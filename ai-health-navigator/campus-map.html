@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Campus Health Map - AI Health Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .map-container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+      margin-top: 20px;
+      height: calc(100vh - 200px);
+    }
+    .map-sidebar {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      overflow-y: auto;
+    }
+    .map-main {
+      background: white;
+      padding: 0;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+    }
+    .location-filter {
+      margin-bottom: 20px;
+    }
+    .filter-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .filter-btn {
+      padding: 8px 12px;
+      border: 2px solid #e0e0e0;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+    .filter-btn.active {
+      background: #1976d2;
+      color: white;
+      border-color: #1976d2;
+    }
+    .filter-btn:hover {
+      border-color: #1976d2;
+    }
+    .location-list {
+      margin-top: 20px;
+    }
+    .location-item {
+      padding: 12px;
+      border-left: 4px solid #1976d2;
+      background: #f5f5f5;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .location-item:hover {
+      background: #e3f2fd;
+      transform: translateX(5px);
+    }
+    .location-item.counseling {
+      border-left-color: #9c27b0;
+    }
+    .location-item.clinic {
+      border-left-color: #d32f2f;
+    }
+    .location-item.gym {
+      border-left-color: #43a047;
+    }
+    .location-item.tech {
+      border-left-color: #f57c00;
+    }
+    .location-name {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    .location-type {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    .location-address {
+      font-size: 14px;
+      color: #555;
+    }
+    .location-hours {
+      font-size: 12px;
+      color: #999;
+      margin-top: 5px;
+    }
+    .map-info {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .map-info h4 {
+      margin: 0 0 10px 0;
+      color: #1976d2;
+    }
+    .map-info p {
+      margin: 5px 0;
+      font-size: 14px;
+      color: #555;
+    }
+    @media (max-width: 968px) {
+      .map-container {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .map-main {
+        height: 500px;
+      }
+      .map-sidebar {
+        max-height: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="logo"><span class="material-icons">medical_services</span> AI Health Navigator</h1>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="symptom-checker.html">Symptom Checker</a>
+        <a href="symptom-sketch.html">Image Analysis</a>
+        <a href="voice-analysis.html">Voice Analysis</a>
+        <a href="calendar.html">Health Calendar</a>
+        <a href="campus-map.html" class="active">Campus Map</a>
+        <a href="health-todo.html">Mini-Doc</a>
+        <a href="dashboard.html">Dashboard</a>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h2><span class="material-icons">map</span> Campus Health Map</h2>
+      <p>Find counseling centers, clinics, gyms, and tech support locations on campus</p>
+    </div>
+
+    <div class="map-container">
+      <div class="map-sidebar">
+        <div class="map-info">
+          <h4><span class="material-icons">place</span> Campus Health Resources</h4>
+          <p>Click on markers or list items to view details</p>
+          <p>Use filters to show specific location types</p>
+          <button id="setCampusLocationBtn" class="primary-btn" style="width: 100%; margin-top: 10px; padding: 10px;">
+            <span class="material-icons">place</span> Set My Campus Location
+          </button>
+          <button id="useMyLocationBtn" class="secondary-btn" style="width: 100%; margin-top: 5px; padding: 10px;">
+            <span class="material-icons">place</span> Use My Current Location
+          </button>
+          <button id="addLocationBtn" class="primary-btn" style="width: 100%; margin-top: 10px; padding: 10px; background: #43a047;">
+            <span class="material-icons">add</span> Add New Location
+          </button>
+        </div>
+
+        <div class="location-filter">
+          <h4 style="margin: 0 0 10px 0; color: #1976d2;">Filter by Type:</h4>
+          <div class="filter-buttons">
+            <button class="filter-btn active" data-type="all">All</button>
+            <button class="filter-btn" data-type="counseling"><span class="material-icons">psychology</span> Counseling</button>
+            <button class="filter-btn" data-type="clinic"><span class="material-icons">local_hospital</span> Clinic</button>
+            <button class="filter-btn" data-type="gym"><span class="material-icons">fitness_center</span> Gym</button>
+            <button class="filter-btn" data-type="tech"><span class="material-icons">laptop</span> Tech</button>
+          </div>
+        </div>
+
+        <div class="location-list" id="locationList"></div>
+      </div>
+
+      <div class="map-main">
+        <div id="map"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Maps API - Load properly -->
+  <script>
+    // Google Maps API Key Configuration
+    const mapsApiKey = 'AIzaSyBwJPkSiVniPGupNmK4jSMTIhGqE7gxxJ8';
+    if (mapsApiKey && mapsApiKey !== 'YOUR_GOOGLE_MAPS_API_KEY') {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&callback=initMap&loading=async`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    } else {
+      // Fallback: initialize without map
+      window.initMap = function() {
+        document.getElementById('map').innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f5f5f5; color: #666;">
+            <div style="text-align: center; padding: 20px;">
+              <h3>🗺️ Google Maps API Key Required</h3>
+              <p>To use the Campus Health Map, please add your Google Maps API key</p>
+              <div style="text-align: left; max-width: 500px; margin: 15px auto; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                <p style="font-weight: bold; margin-top: 0;">Steps to get your API key:</p>
+                <ol style="font-size: 13px; line-height: 1.8;">
+                  <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console - Credentials</a></li>
+                  <li>Click "CREATE CREDENTIALS" → "API key"</li>
+                  <li>Enable "Maps JavaScript API" in <a href="https://console.cloud.google.com/apis/library" target="_blank">API Library</a></li>
+                  <li>Edit <code>campus-map.html</code> line 202</li>
+                  <li>Replace <code>'YOUR_GOOGLE_MAPS_API_KEY'</code> with your actual key</li>
+                  <li>Restrict the key to "Maps JavaScript API" for security</li>
+                </ol>
+              </div>
+              <p style="font-size: 11px; color: #999; margin-top: 10px;">Note: The map will work without an API key, but you'll only see the location list.</p>
+            </div>
+          </div>
+        `;
+      };
+      // Initialize immediately
+      setTimeout(() => window.initMap(), 100);
+    }
+  </script>
+  
+  <script src="auth.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="notifications.js"></script>
+  <script>
+    // Require authentication
+    requireAuth().then(user => {
+      console.log("User authenticated:", user.uid);
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    // Base campus center (used as reference point for relative positioning)
+    const BASE_CAMPUS_CENTER = { lat: 40.7128, lng: -74.0060 }; // New York as default base
+
+    // Campus locations data - stored as relative offsets from base center
+    // These offsets will be applied to the user's actual campus location
+    const campusLocationsTemplate = [
+      {
+        id: 1,
+        name: "Student Counseling Center",
+        type: "counseling",
+        offsetLat: 0.0000,      // Relative to base center
+        offsetLng: 0.0000,
+        address: "123 Main Street, Building A, Room 201",
+        hours: "Mon-Fri: 9 AM - 5 PM",
+        phone: "(555) 123-4567",
+        description: "Mental health counseling and support services for students"
+      },
+      {
+        id: 2,
+        name: "Campus Health Clinic",
+        type: "clinic",
+        offsetLat: 0.0012,      // ~130 meters north
+        offsetLng: -0.0010,    // ~110 meters west
+        address: "456 Health Avenue, Building B, Ground Floor",
+        hours: "Mon-Fri: 8 AM - 6 PM, Sat: 9 AM - 1 PM",
+        phone: "(555) 234-5678",
+        description: "General health services, vaccinations, and medical consultations"
+      },
+      {
+        id: 3,
+        name: "Student Recreation Center",
+        type: "gym",
+        offsetLat: 0.0002,      // ~22 meters north
+        offsetLng: -0.0020,    // ~220 meters west
+        address: "789 Fitness Road, Building C",
+        hours: "Mon-Fri: 6 AM - 10 PM, Weekends: 8 AM - 8 PM",
+        phone: "(555) 345-6789",
+        description: "Fitness center with gym equipment, swimming pool, and group classes"
+      },
+      {
+        id: 4,
+        name: "IT Support Center",
+        type: "tech",
+        offsetLat: 0.0022,      // ~240 meters north
+        offsetLng: -0.0030,    // ~330 meters west
+        address: "321 Tech Boulevard, Building D, Room 105",
+        hours: "Mon-Fri: 8 AM - 8 PM, Sat-Sun: 10 AM - 4 PM",
+        phone: "(555) 456-7890",
+        description: "Technical support, device repairs, and IT assistance"
+      },
+      {
+        id: 5,
+        name: "Wellness Center",
+        type: "counseling",
+        offsetLat: 0.0007,      // ~77 meters north
+        offsetLng: -0.0005,    // ~55 meters west
+        address: "654 Wellness Way, Building E, 2nd Floor",
+        hours: "Mon-Fri: 10 AM - 6 PM",
+        phone: "(555) 567-8901",
+        description: "Wellness programs, stress management, and mindfulness sessions"
+      },
+      {
+        id: 6,
+        name: "Urgent Care Clinic",
+        type: "clinic",
+        offsetLat: 0.0017,      // ~188 meters north
+        offsetLng: -0.0015,    // ~165 meters west
+        address: "987 Emergency Lane, Building F",
+        hours: "24/7 Emergency Services",
+        phone: "(555) 678-9012",
+        description: "Emergency medical care and urgent health services"
+      },
+      {
+        id: 7,
+        name: "Sports Complex",
+        type: "gym",
+        offsetLat: -0.0003,     // ~33 meters south
+        offsetLng: -0.0025,    // ~275 meters west
+        address: "147 Athletic Drive, Building G",
+        hours: "Mon-Sun: 6 AM - 11 PM",
+        phone: "(555) 789-0123",
+        description: "Indoor sports facilities, basketball courts, and fitness classes"
+      },
+      {
+        id: 8,
+        name: "Computer Lab & Tech Hub",
+        type: "tech",
+        offsetLat: 0.0027,      // ~298 meters north
+        offsetLng: -0.0035,    // ~385 meters west
+        address: "258 Digital Street, Building H, Room 301",
+        hours: "Mon-Fri: 7 AM - 11 PM, Weekends: 9 AM - 9 PM",
+        phone: "(555) 890-1234",
+        description: "Computer labs, printing services, and technology resources"
+      },
+      {
+        id: 9,
+        name: "Mental Health Support Group",
+        type: "counseling",
+        offsetLat: -0.0010,     // ~110 meters south
+        offsetLng: 0.0015,     // ~165 meters east
+        address: "555 Support Street, Building I, Room 102",
+        hours: "Mon-Fri: 2 PM - 8 PM, Weekends: 10 AM - 4 PM",
+        phone: "(555) 901-2345",
+        description: "Peer support groups and mental health workshops"
+      },
+      {
+        id: 10,
+        name: "Dental Clinic",
+        type: "clinic",
+        offsetLat: 0.0015,      // ~165 meters north
+        offsetLng: 0.0010,     // ~110 meters east
+        address: "321 Dental Drive, Building J, Ground Floor",
+        hours: "Mon-Fri: 9 AM - 5 PM",
+        phone: "(555) 012-3456",
+        description: "Dental checkups, cleanings, and oral health services"
+      },
+      {
+        id: 11,
+        name: "Yoga & Meditation Studio",
+        type: "gym",
+        offsetLat: -0.0008,     // ~88 meters south
+        offsetLng: -0.0018,    // ~198 meters west
+        address: "789 Zen Way, Building K",
+        hours: "Mon-Sun: 7 AM - 9 PM",
+        phone: "(555) 123-4568",
+        description: "Yoga classes, meditation sessions, and mindfulness training"
+      },
+      {
+        id: 12,
+        name: "Help Desk & Tech Support",
+        type: "tech",
+        offsetLat: 0.0005,      // ~55 meters north
+        offsetLng: 0.0020,     // ~220 meters east
+        address: "456 Help Street, Building L, Room 205",
+        hours: "Mon-Fri: 7 AM - 9 PM, Weekends: 10 AM - 6 PM",
+        phone: "(555) 234-5679",
+        description: "General tech help, software support, and device troubleshooting"
+      }
+    ];
+
+    // Convert template to actual locations with absolute coordinates
+    let campusLocations = [];
+
+    // Function to update campus locations based on actual campus center
+    // Only updates template locations (those with offsetLat/offsetLng)
+    function updateCampusLocations(actualCampusCenter) {
+      // Update template locations
+      const templateLocations = campusLocationsTemplate.map(loc => ({
+        ...loc,
+        lat: actualCampusCenter.lat + loc.offsetLat,
+        lng: actualCampusCenter.lng + loc.offsetLng
+      }));
+      
+      // Keep custom locations (those without offsetLat/offsetLng) as they have absolute coordinates
+      const customLocations = campusLocations.filter(loc => loc.offsetLat === undefined && loc.offsetLng === undefined);
+      
+      // Combine template and custom locations
+      campusLocations = [...templateLocations, ...customLocations];
+    }
+
+    // Initialize with default base center
+    updateCampusLocations(BASE_CAMPUS_CENTER);
+
+    let map;
+    let markers = [];
+    let infoWindow;
+    let currentFilter = 'all';
+
+    // Load saved campus location from localStorage
+    function loadSavedCampusLocation() {
+      const saved = localStorage.getItem('campusLocation');
+      if (saved) {
+        try {
+          const location = JSON.parse(saved);
+          return { lat: location.lat, lng: location.lng };
+        } catch (e) {
+          console.error('Error parsing saved location:', e);
+          return null;
+        }
+      }
+      return null;
+    }
+
+    // Calculate center from campus locations (now just returns the current center)
+    function calculateCenterFromLocations() {
+      if (campusLocations.length === 0) {
+        return BASE_CAMPUS_CENTER; // Fallback
+      }
+      
+      // Since locations are now relative to a center, just return the first location's approximate center
+      // Or better: calculate average
+      let totalLat = 0;
+      let totalLng = 0;
+      campusLocations.forEach(loc => {
+        totalLat += loc.lat;
+        totalLng += loc.lng;
+      });
+      
+      return {
+        lat: totalLat / campusLocations.length,
+        lng: totalLng / campusLocations.length
+      };
+    }
+
+    // Initialize map - Make it globally available for Google Maps callback
+    window.initMap = function initMap() {
+      console.log('initMap called');
+      
+      // Check if map element exists
+      const mapElement = document.getElementById('map');
+      if (!mapElement) {
+        console.error('Map element not found');
+        return;
+      }
+
+      if (typeof google === 'undefined' || !google.maps) {
+        console.error('Google Maps API not loaded');
+        mapElement.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #fff3e0; color: #f57c00; padding: 20px;">
+            <div style="text-align: center;">
+              <h3>⏳ Loading Google Maps...</h3>
+              <p>Please wait while the map loads</p>
+              <p style="font-size: 12px; margin-top: 10px;">If this persists, check your API key</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Priority: 1. Saved location, 2. User's location, 3. Default base center
+      let campusCenter = BASE_CAMPUS_CENTER;
+      
+      // Check for saved campus location first
+      const savedLocation = loadSavedCampusLocation();
+      if (savedLocation) {
+        campusCenter = savedLocation;
+        // Update all campus locations to be relative to this center
+        updateCampusLocations(campusCenter);
+        initializeMapWithCenter(campusCenter);
+        return;
+      }
+
+      // Try to get user's current location (with timeout)
+      if (navigator.geolocation) {
+        const geoTimeout = setTimeout(() => {
+          console.log('Geolocation timeout, using default campus center');
+          // Update locations relative to default center
+          updateCampusLocations(campusCenter);
+          initializeMapWithCenter(campusCenter);
+        }, 3000); // 3 second timeout
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(geoTimeout);
+            // Use user's location as campus center
+            campusCenter = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            // Update all campus locations to be relative to user's location
+            updateCampusLocations(campusCenter);
+            initializeMapWithCenter(campusCenter);
+          },
+          (error) => {
+            clearTimeout(geoTimeout);
+            // If geolocation fails, use default center
+            console.log('Geolocation not available, using default campus center:', error.message);
+            updateCampusLocations(campusCenter);
+            initializeMapWithCenter(campusCenter);
+          },
+          { timeout: 3000, maximumAge: 60000 }
+        );
+      } else {
+        // Browser doesn't support geolocation, use default center
+        console.log('Geolocation not supported, using default campus center');
+        updateCampusLocations(campusCenter);
+        initializeMapWithCenter(campusCenter);
+      }
+    };
+
+    function initializeMapWithCenter(center) {
+      try {
+        const mapElement = document.getElementById('map');
+        if (!mapElement) {
+          console.error('Map element not found');
+          return;
+        }
+
+        map = new google.maps.Map(mapElement, {
+        zoom: 15,
+          center: center,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true
+      });
+
+      infoWindow = new google.maps.InfoWindow();
+
+      // Create markers for all locations
+      createMarkers();
+      renderLocationList();
+        
+        // Fit map to show all markers with some padding
+        if (campusLocations.length > 0) {
+          const bounds = new google.maps.LatLngBounds();
+          campusLocations.forEach(loc => {
+            bounds.extend({ lat: loc.lat, lng: loc.lng });
+          });
+          // Add padding to ensure markers are visible
+          map.fitBounds(bounds, { padding: 50 });
+          
+          // If only one location, set a reasonable zoom
+          if (campusLocations.length === 1) {
+            map.setZoom(15);
+          } else {
+            // Ensure zoom is not too close (minimum zoom 13)
+            setTimeout(() => {
+              if (map.getZoom() > 18) {
+                map.setZoom(16);
+              } else if (map.getZoom() < 13) {
+                map.setZoom(14);
+              }
+            }, 100);
+          }
+        }
+
+      // Filter button handlers
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.type;
+          filterLocations(currentFilter);
+        });
+      });
+      } catch (error) {
+        console.error('Error initializing map:', error);
+        const mapElement = document.getElementById('map');
+        if (mapElement) {
+          mapElement.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #ffebee; color: #c62828; padding: 20px;">
+              <div style="text-align: center;">
+                <h3>❌ Error Loading Map</h3>
+                <p>${error.message}</p>
+                <p style="font-size: 12px; margin-top: 10px;">Check browser console (F12) for details</p>
+                <p style="font-size: 12px;">Make sure your Google Maps API key is valid and has the required permissions</p>
+              </div>
+            </div>
+          `;
+        }
+      }
+    }
+
+    // Create markers on map
+    function createMarkers() {
+      campusLocations.forEach(location => {
+        const marker = new google.maps.Marker({
+          position: { lat: location.lat, lng: location.lng },
+          map: map,
+          title: location.name,
+          icon: getMarkerIcon(location.type),
+          animation: google.maps.Animation.DROP
+        });
+
+        marker.addListener('click', () => {
+          showLocationInfo(location, marker);
+        });
+
+        markers.push({ marker, location });
+      });
+    }
+
+    // Get marker icon based on type
+    function getMarkerIcon(type) {
+      const icons = {
+        counseling: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#9c27b0" stroke="white" stroke-width="2"/>
+              <text x="16" y="22" font-size="18" fill="white" text-anchor="middle">🧠</text>
+            </svg>
+          `),
+          scaledSize: new google.maps.Size(32, 32)
+        },
+        clinic: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#d32f2f" stroke="white" stroke-width="2"/>
+              <text x="16" y="22" font-size="18" fill="white" text-anchor="middle">🏥</text>
+            </svg>
+          `),
+          scaledSize: new google.maps.Size(32, 32)
+        },
+        gym: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#43a047" stroke="white" stroke-width="2"/>
+              <text x="16" y="22" font-size="18" fill="white" text-anchor="middle">💪</text>
+            </svg>
+          `),
+          scaledSize: new google.maps.Size(32, 32)
+        },
+        tech: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#f57c00" stroke="white" stroke-width="2"/>
+              <text x="16" y="22" font-size="18" fill="white" text-anchor="middle">💻</text>
+            </svg>
+          `),
+          scaledSize: new google.maps.Size(32, 32)
+        }
+      };
+      return icons[type] || icons.clinic;
+    }
+
+    // Show location info in info window
+    function showLocationInfo(location, marker) {
+      const content = document.createElement('div');
+      content.style.padding = '10px';
+      content.style.maxWidth = '350px';
+      // Check if this is a custom location (can be deleted)
+      const isCustom = location.offsetLat === undefined && location.offsetLng === undefined;
+      
+      content.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="margin: 0; color: #1976d2;">${location.name}</h3>
+          <div>
+            <button id="edit-btn-${location.id}" style="background: #1976d2; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 5px;">✏️ Edit</button>
+            ${isCustom ? `<button id="delete-btn-${location.id}" style="background: #d32f2f; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Delete</button>` : ''}
+          </div>
+        </div>
+        <p style="margin: 5px 0; color: #666;"><strong>Type:</strong> ${getTypeLabel(location.type)}</p>
+        <p style="margin: 5px 0; color: #666;"><strong>Address:</strong> <span id="addr-${location.id}">${location.address}</span></p>
+        <p style="margin: 5px 0; color: #666;"><strong>Hours:</strong> <span id="hours-${location.id}">${location.hours}</span></p>
+        <p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> <span id="phone-${location.id}">${location.phone}</span></p>
+        <p style="margin: 10px 0 0 0; color: #555; font-size: 14px;"><span id="desc-${location.id}">${location.description}</span></p>
+      `;
+
+      // Add edit and delete button listeners after content is set
+      google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+        const editBtn = document.getElementById(`edit-btn-${location.id}`);
+        if (editBtn) {
+          editBtn.addEventListener('click', () => {
+            editLocation(location.id).then(() => {
+              // Refresh info window after edit
+              showLocationInfo(location, marker);
+            });
+          });
+        }
+
+        const deleteBtn = document.getElementById(`delete-btn-${location.id}`);
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', async () => {
+            await deleteLocation(location.id);
+          });
+        }
+      });
+
+      infoWindow.setContent(content);
+      infoWindow.open(map, marker);
+      map.setCenter(marker.getPosition());
+      map.setZoom(17);
+    }
+
+    // Get type label
+    function getTypeLabel(type) {
+      const labels = {
+        counseling: '🧠 Counseling Center',
+        clinic: '🏥 Health Clinic',
+        gym: '💪 Gym/Fitness',
+        tech: '💻 Tech Support'
+      };
+      return labels[type] || type;
+    }
+
+    // Filter locations
+    function filterLocations(type) {
+      markers.forEach(({ marker, location }) => {
+        if (type === 'all' || location.type === type) {
+          marker.setVisible(true);
+        } else {
+          marker.setVisible(false);
+        }
+      });
+      renderLocationList();
+    }
+
+    // Render location list
+    function renderLocationList() {
+      const listContainer = document.getElementById('locationList');
+      const filtered = currentFilter === 'all' 
+        ? campusLocations 
+        : campusLocations.filter(loc => loc.type === currentFilter);
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = '<p style="text-align: center; color: #999;">No locations found</p>';
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(location => {
+        const typeLabel = getTypeLabel(location.type);
+        return `
+          <div class="location-item ${location.type}">
+            <div onclick="focusLocation(${location.id})" style="flex: 1;">
+              <div class="location-name">${location.name}</div>
+              <div class="location-type">${typeLabel}</div>
+              <div class="location-address" id="list-addr-${location.id}">${location.address}</div>
+              <div class="location-hours" id="list-hours-${location.id}">${location.hours}</div>
+            </div>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+              <button onclick="editLocation(${location.id})" style="background: #1976d2; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">✏️ Edit</button>
+              ${location.offsetLat === undefined && location.offsetLng === undefined ? `<button onclick="deleteLocation(${location.id})" style="background: #d32f2f; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">🗑️ Delete</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Focus on location when clicked from list
+    function focusLocation(locationId) {
+      const location = campusLocations.find(loc => loc.id === locationId);
+      if (!location) return;
+
+      const markerData = markers.find(m => m.location.id === locationId);
+      if (markerData) {
+        showLocationInfo(location, markerData.marker);
+      }
+    }
+
+    // Edit location function
+    async function editLocation(locationId) {
+      const location = campusLocations.find(loc => loc.id === locationId);
+      if (!location) return;
+
+      const newName = prompt('Location Name:', location.name);
+      if (newName === null) return;
+
+      const newAddress = prompt('Address:', location.address);
+      if (newAddress === null) return;
+
+      const newHours = prompt('Hours:', location.hours);
+      if (newHours === null) return;
+
+      const newPhone = prompt('Phone:', location.phone);
+      if (newPhone === null) return;
+
+      const newDescription = prompt('Description:', location.description);
+      if (newDescription === null) return;
+
+      // Update location
+      location.name = newName;
+      location.address = newAddress;
+      location.hours = newHours;
+      location.phone = newPhone;
+      location.description = newDescription;
+
+      // Save to Firestore
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          await db.collection("campus_locations").doc(locationId.toString()).set({
+            userId: user.uid,
+            ...location,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      } catch (error) {
+        console.error('Error saving location:', error);
+      }
+
+      // Update marker title
+      const markerData = markers.find(m => m.location.id === locationId);
+      if (markerData) {
+        markerData.marker.setTitle(location.name);
+        showLocationInfo(location, markerData.marker);
+      }
+
+      // Update list
+      renderLocationList();
+    }
+
+    // Load locations from Firestore
+    async function loadLocationsFromFirestore() {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const snapshot = await db.collection("campus_locations")
+          .where("userId", "==", user.uid)
+          .get();
+
+        if (!snapshot.empty) {
+          // Load custom locations (those saved by user)
+          const customLocations = [];
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            // Custom locations have isCustom flag or no offsetLat/offsetLng
+            if (data.isCustom || (data.offsetLat === undefined && data.offsetLng === undefined)) {
+              customLocations.push(data);
+              // Update nextLocationId if needed
+              if (data.id >= nextLocationId) {
+                nextLocationId = data.id + 1;
+              }
+            } else {
+              // Update existing template location
+              const existingIndex = campusLocations.findIndex(loc => loc.id === data.id);
+              if (existingIndex !== -1) {
+                campusLocations[existingIndex] = { ...campusLocations[existingIndex], ...data };
+              }
+            }
+          });
+          
+          // Add custom locations to the array
+          campusLocations.push(...customLocations);
+        } else {
+          // Save default template locations to Firestore
+          const user = auth.currentUser;
+          if (user) {
+            campusLocations.forEach(async (location) => {
+              await db.collection("campus_locations").doc(location.id.toString()).set({
+                userId: user.uid,
+                ...location,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading locations:', error);
+      }
+    }
+
+    // Add new location function
+    async function addNewLocation() {
+      if (typeof google === 'undefined' || !google.maps || !map) {
+        alert('Please wait for the map to load first.');
+        return;
+      }
+
+      // Get location type
+      const typeChoice = prompt('Select location type:\n1. Counseling\n2. Clinic\n3. Gym\n4. Tech\n\nEnter 1, 2, 3, or 4:');
+      if (!typeChoice) return;
+      
+      const typeMap = { '1': 'counseling', '2': 'clinic', '3': 'gym', '4': 'tech' };
+      const locationType = typeMap[typeChoice];
+      if (!locationType) {
+        alert('Invalid choice. Please try again.');
+        return;
+      }
+
+      // Get location name
+      const name = prompt('Enter location name:');
+      if (!name) return;
+
+      // Get address
+      const address = prompt('Enter address:');
+      if (!address) return;
+
+      // Geocode address to get coordinates
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: address }, async (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location;
+          const newLocation = {
+            id: nextLocationId++,
+            name: name,
+            type: locationType,
+            lat: location.lat(),
+            lng: location.lng(),
+            address: results[0].formatted_address || address,
+            hours: prompt('Enter hours (e.g., "Mon-Fri: 9 AM - 5 PM"):') || 'Hours not specified',
+            phone: prompt('Enter phone number:') || 'Phone not available',
+            description: prompt('Enter description:') || 'No description available'
+          };
+
+          // Add to campus locations (custom location, no offset)
+          campusLocations.push(newLocation);
+
+          // Create marker
+          const marker = new google.maps.Marker({
+            position: { lat: newLocation.lat, lng: newLocation.lng },
+            map: map,
+            title: newLocation.name,
+            icon: getMarkerIcon(newLocation.type),
+            animation: google.maps.Animation.DROP
+          });
+
+          marker.addListener('click', () => {
+            showLocationInfo(newLocation, marker);
+          });
+
+          markers.push({ marker, location: newLocation });
+
+          // Save to Firestore
+          try {
+            const user = auth.currentUser;
+            if (user) {
+              await db.collection("campus_locations").doc(newLocation.id.toString()).set({
+                userId: user.uid,
+                ...newLocation,
+                isCustom: true, // Mark as custom location
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+            }
+          } catch (error) {
+            console.error('Error saving location:', error);
+          }
+
+          // Update list
+          renderLocationList();
+
+          // Fit bounds to show new location
+          const bounds = new google.maps.LatLngBounds();
+          campusLocations.forEach(loc => {
+            bounds.extend({ lat: loc.lat, lng: loc.lng });
+          });
+          map.fitBounds(bounds, { padding: 50 });
+
+          alert(`Location "${name}" added successfully!`);
+        } else {
+          alert('Could not find that address. Please try a more specific address.');
+        }
+      });
+    }
+
+    // Delete location function
+    async function deleteLocation(locationId) {
+      if (!confirm('Are you sure you want to delete this location?')) {
+        return;
+      }
+
+      // Remove from array
+      const index = campusLocations.findIndex(loc => loc.id === locationId);
+      if (index === -1) return;
+
+      // Remove marker
+      const markerData = markers.find(m => m.location.id === locationId);
+      if (markerData) {
+        markerData.marker.setMap(null);
+        markers = markers.filter(m => m.location.id !== locationId);
+      }
+
+      // Remove from array
+      campusLocations.splice(index, 1);
+
+      // Delete from Firestore
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          await db.collection("campus_locations").doc(locationId.toString()).delete();
+        }
+      } catch (error) {
+        console.error('Error deleting location:', error);
+      }
+
+      // Update list
+      renderLocationList();
+
+      // Close info window if open
+      if (infoWindow) {
+        infoWindow.close();
+      }
+    }
+
+    // Make functions global
+    window.focusLocation = focusLocation;
+    window.editLocation = editLocation;
+    window.deleteLocation = deleteLocation;
+
+    // Set campus location manually (wait for DOM)
+    function setupLocationButtons() {
+      const setCampusBtn = document.getElementById('setCampusLocationBtn');
+      const useLocationBtn = document.getElementById('useMyLocationBtn');
+      const addLocationBtn = document.getElementById('addLocationBtn');
+      
+      if (setCampusBtn) {
+        setCampusBtn.addEventListener('click', () => {
+          if (typeof google === 'undefined' || !google.maps) {
+            alert('Google Maps API is not loaded. Please refresh the page.');
+            return;
+          }
+
+          const address = prompt('Enter your campus address or location name:\n(Example: "University of California, Los Angeles" or "123 College St, City, State")');
+          if (!address) return;
+
+          // Use Geocoding API to get coordinates
+          const geocoder = new google.maps.Geocoder();
+          geocoder.geocode({ address: address }, (results, status) => {
+            if (status === 'OK' && results[0]) {
+              const location = results[0].geometry.location;
+              const newCenter = {
+                lat: location.lat(),
+                lng: location.lng()
+              };
+              
+          // Update all campus locations to be relative to this new center
+          updateCampusLocations(newCenter);
+          
+          // Recreate markers with new positions
+          if (map) {
+            // Clear existing markers
+            markers.forEach(({ marker }) => marker.setMap(null));
+            markers = [];
+            
+            // Create new markers at updated locations
+            createMarkers();
+            
+            // Fit bounds to show all markers
+            const bounds = new google.maps.LatLngBounds();
+            campusLocations.forEach(loc => {
+              bounds.extend({ lat: loc.lat, lng: loc.lng });
+            });
+            map.fitBounds(bounds, { padding: 50 });
+          }
+          
+          alert(`Campus location set to: ${results[0].formatted_address}\n\nAll campus markers have been repositioned near this location!`);
+          
+          // Save to localStorage for future use
+          localStorage.setItem('campusLocation', JSON.stringify({
+            lat: newCenter.lat,
+            lng: newCenter.lng,
+            address: results[0].formatted_address
+          }));
+            } else {
+              alert('Could not find that location. Please try a more specific address.');
+            }
+          });
+        });
+      }
+      
+      if (useLocationBtn) {
+        useLocationBtn.addEventListener('click', () => {
+          if (typeof google === 'undefined' || !google.maps) {
+            alert('Google Maps API is not loaded. Please refresh the page.');
+            return;
+          }
+
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const userLocation = {
+                  lat: position.coords.latitude,
+                  lng: position.coords.longitude
+                };
+                
+            // Update all campus locations to be relative to user's location
+            updateCampusLocations(userLocation);
+            
+            if (map) {
+              // Clear existing markers
+              markers.forEach(({ marker }) => marker.setMap(null));
+              markers = [];
+              
+              // Create new markers at updated locations
+              createMarkers();
+              
+              // Add a marker for user's location
+              new google.maps.Marker({
+                position: userLocation,
+                map: map,
+                title: 'Your Location',
+                icon: {
+                  url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                }
+              });
+              
+              // Fit bounds to show all markers including user location
+              const bounds = new google.maps.LatLngBounds();
+              bounds.extend(userLocation);
+              campusLocations.forEach(loc => {
+                bounds.extend({ lat: loc.lat, lng: loc.lng });
+              });
+              map.fitBounds(bounds, { padding: 50 });
+            }
+            
+            // Save user location as campus center
+            localStorage.setItem('campusLocation', JSON.stringify({
+              lat: userLocation.lat,
+              lng: userLocation.lng,
+              address: 'Your Current Location'
+            }));
+            
+            alert('Map centered on your current location!\n\nAll campus markers have been repositioned near you!');
+              },
+              (error) => {
+                alert('Could not get your location. Please enable location services or use "Set My Campus Location" instead.');
+              }
+            );
+          } else {
+            alert('Your browser does not support geolocation.');
+          }
+        });
+      }
+
+      if (addLocationBtn) {
+        addLocationBtn.addEventListener('click', () => {
+          addNewLocation();
+        });
+      }
+    }
+
+    // Setup buttons when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupLocationButtons);
+    } else {
+      setupLocationButtons();
+    }
+
+    // Load locations when authenticated
+    requireAuth().then(async () => {
+      await loadLocationsFromFirestore();
+      
+      // Check for saved campus location
+      const savedLocation = loadSavedCampusLocation();
+      if (savedLocation && campusLocations.length > 0) {
+        // Update campus locations center if we have saved location
+        // You can also update individual location coordinates here
+      }
+      
+      // If Google Maps is already loaded, initialize map
+      // Otherwise, wait for the callback from the script tag
+      if (typeof google !== 'undefined' && google.maps && typeof window.initMap === 'function') {
+        // Map might already be initialized by callback, check first
+        if (!map) {
+          window.initMap();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+

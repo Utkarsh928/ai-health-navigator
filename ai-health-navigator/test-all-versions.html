@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test All API Versions</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+    #result { margin-top: 20px; }
+    .test-item { padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
+    .success { background: #e8f5e9; border-color: #4caf50; }
+    .error { background: #ffebee; border-color: #f44336; }
+    .testing { background: #fff3e0; border-color: #ff9800; }
+    pre { background: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    h3 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Testing All Gemini API Versions & Models</h1>
+  <p>Enter your API key and click "Test All" to find which version/model works:</p>
+  
+  <input type="text" id="apiKeyInput" placeholder="Enter your Gemini API key" 
+         style="width: 100%; padding: 10px; font-size: 14px; margin-bottom: 10px;"
+         value="AIzaSyAMS3Lg483T8B2UWbE_HbfQoozujLvdGVI">
+  
+  <button id="testAllBtn">Test All Versions</button>
+  <button id="clearBtn">Clear Results</button>
+  
+  <div id="result"></div>
+
+  <script>
+    const apiVersions = ['v1beta', 'v1'];
+    const modelNames = [
+      'gemini-pro',
+      'gemini-1.0-pro',
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+      'gemini-pro-vision',
+      'models/gemini-pro',
+      'models/gemini-1.0-pro'
+    ];
+
+    document.getElementById('testAllBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      const resultDiv = document.getElementById('result');
+      
+      if (!apiKey) {
+        alert('Please enter an API key');
+        return;
+      }
+
+      resultDiv.innerHTML = '<p>Testing all combinations... This may take a minute.</p>';
+      
+      let successFound = false;
+
+      for (const version of apiVersions) {
+        for (const model of modelNames) {
+          const testId = `${version}-${model}`;
+          const testDiv = document.createElement('div');
+          testDiv.id = testId;
+          testDiv.className = 'test-item testing';
+          testDiv.innerHTML = `<h3>Testing: ${version} / ${model}</h3><p>Testing...</p>`;
+          resultDiv.appendChild(testDiv);
+
+          try {
+            const apiUrl = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
+            
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: "Say 'Hello' if you can read this."
+                  }]
+                }]
+              })
+            });
+
+            const responseText = await response.text();
+            const data = JSON.parse(responseText);
+
+            if (response.ok && data.candidates && data.candidates.length > 0) {
+              testDiv.className = 'test-item success';
+              testDiv.innerHTML = `
+                <h3>✅ SUCCESS: ${version} / ${model}</h3>
+                <p><strong>Response:</strong> ${data.candidates[0].content.parts[0].text}</p>
+                <p><strong>Working URL:</strong> <code>${version}/models/${model}:generateContent</code></p>
+                <button onclick="copyToClipboard('${version}', '${model}')">Copy Working Config</button>
+              `;
+              successFound = true;
+            } else {
+              testDiv.className = 'test-item error';
+              testDiv.innerHTML = `
+                <h3>❌ Failed: ${version} / ${model}</h3>
+                <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+              `;
+            }
+          } catch (error) {
+            testDiv.className = 'test-item error';
+            testDiv.innerHTML = `
+              <h3>❌ Error: ${version} / ${model}</h3>
+              <p><strong>Error:</strong> ${error.message}</p>
+            `;
+          }
+
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      if (successFound) {
+        resultDiv.insertAdjacentHTML('afterbegin', '<div class="test-item success"><h2>✅ Found Working Configuration!</h2><p>Scroll down to see which one works.</p></div>');
+      } else {
+        resultDiv.insertAdjacentHTML('afterbegin', '<div class="test-item error"><h2>❌ No Working Configuration Found</h2><p>Please check your API key or try a different key.</p></div>');
+      }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('result').innerHTML = '';
+    });
+
+    function copyToClipboard(version, model) {
+      const config = `API Version: ${version}\nModel: ${model}\nURL: https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=YOUR_API_KEY`;
+      navigator.clipboard.writeText(config).then(() => {
+        alert('Config copied to clipboard!');
+      });
+    }
+  </script>
+</body>
+</html>
+

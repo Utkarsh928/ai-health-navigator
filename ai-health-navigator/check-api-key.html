@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Check API Key & List Models</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+    #result { margin-top: 20px; }
+    .section { padding: 20px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
+    .success { background: #e8f5e9; border-color: #4caf50; }
+    .error { background: #ffebee; border-color: #f44336; }
+    pre { background: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    .model-item { padding: 10px; margin: 5px 0; background: #f5f5f5; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>🔑 Check API Key & List Available Models</h1>
+  
+  <input type="text" id="apiKeyInput" placeholder="Enter your Gemini API key" 
+         style="width: 100%; padding: 10px; font-size: 14px; margin-bottom: 10px;"
+         value="AIzaSyAMS3Lg483T8B2UWbE_HbfQoozujLvdGVI">
+  
+  <button id="checkKeyBtn">1. Check API Key Validity</button>
+  <button id="listModelsBtn">2. List Available Models</button>
+  <button id="testModelBtn">3. Test Model</button>
+  
+  <div id="result"></div>
+
+  <script>
+    let availableModels = [];
+
+    document.getElementById('checkKeyBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      const resultDiv = document.getElementById('result');
+      
+      if (!apiKey) {
+        alert('Please enter an API key');
+        return;
+      }
+
+      resultDiv.innerHTML = '<div class="section"><h2>Checking API Key...</h2></div>';
+
+      // Try to list models - this will tell us if the key is valid
+      try {
+        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        const response = await fetch(listUrl);
+        const data = await response.json();
+
+        if (response.ok && data.models) {
+          resultDiv.innerHTML = `
+            <div class="section success">
+              <h2>✅ API Key is VALID!</h2>
+              <p>Found ${data.models.length} available models</p>
+              <h3>Available Models:</h3>
+              <div id="modelsList"></div>
+            </div>
+          `;
+          
+          availableModels = data.models;
+          const modelsList = document.getElementById('modelsList');
+          data.models.forEach(model => {
+            const modelDiv = document.createElement('div');
+            modelDiv.className = 'model-item';
+            modelDiv.innerHTML = `
+              <strong>${model.name}</strong><br>
+              <small>Display Name: ${model.displayName || 'N/A'}</small><br>
+              <small>Supported Methods: ${model.supportedGenerationMethods?.join(', ') || 'N/A'}</small>
+            `;
+            modelsList.appendChild(modelDiv);
+          });
+        } else {
+          resultDiv.innerHTML = `
+            <div class="section error">
+              <h2>❌ API Key Check Failed</h2>
+              <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+              <p><strong>Possible Issues:</strong></p>
+              <ul>
+                <li>API key is invalid or expired</li>
+                <li>API key doesn't have proper permissions</li>
+                <li>You need to enable the Generative Language API in Google Cloud Console</li>
+              </ul>
+            </div>
+          `;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="section error">
+            <h2>❌ Error Checking API Key</h2>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    });
+
+    document.getElementById('listModelsBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      const resultDiv = document.getElementById('result');
+      
+      if (!apiKey) {
+        alert('Please enter an API key');
+        return;
+      }
+
+      resultDiv.innerHTML = '<div class="section"><h2>Listing Models...</h2></div>';
+
+      // Try both v1 and v1beta
+      const versions = ['v1beta', 'v1'];
+      
+      for (const version of versions) {
+        try {
+          const listUrl = `https://generativelanguage.googleapis.com/${version}/models?key=${apiKey}`;
+          const response = await fetch(listUrl);
+          const data = await response.json();
+
+          if (response.ok && data.models) {
+            const modelsWithGenerate = data.models.filter(m => 
+              m.supportedGenerationMethods?.includes('generateContent')
+            );
+            
+            resultDiv.innerHTML += `
+              <div class="section success">
+                <h2>✅ ${version.toUpperCase()} Models Available</h2>
+                <p>Total models: ${data.models.length}</p>
+                <p>Models with generateContent: ${modelsWithGenerate.length}</p>
+                <h3>Models that support generateContent:</h3>
+                <div id="models-${version}"></div>
+              </div>
+            `;
+            
+            const modelsDiv = document.getElementById(`models-${version}`);
+            modelsWithGenerate.forEach(model => {
+              const modelDiv = document.createElement('div');
+              modelDiv.className = 'model-item';
+              const modelName = model.name.replace('models/', '');
+              modelDiv.innerHTML = `
+                <strong>${modelName}</strong><br>
+                <small>Full Name: ${model.name}</small><br>
+                <small>Display: ${model.displayName || 'N/A'}</small><br>
+                <button onclick="testSpecificModel('${version}', '${modelName}')">Test This Model</button>
+              `;
+              modelsDiv.appendChild(modelDiv);
+            });
+          } else {
+            resultDiv.innerHTML += `
+              <div class="section error">
+                <h2>❌ ${version.toUpperCase()} Failed</h2>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+              </div>
+            `;
+          }
+        } catch (error) {
+          resultDiv.innerHTML += `
+            <div class="section error">
+              <h2>❌ ${version.toUpperCase()} Error</h2>
+              <p>${error.message}</p>
+            </div>
+          `;
+        }
+      }
+    });
+
+    document.getElementById('testModelBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      const modelName = prompt('Enter model name (e.g., gemini-pro):');
+      const version = prompt('Enter API version (v1 or v1beta):', 'v1beta');
+      
+      if (!modelName || !version) return;
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = '<div class="section"><h2>Testing Model...</h2></div>';
+
+      try {
+        const apiUrl = `https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${apiKey}`;
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: "Say 'Hello' if you can read this."
+              }]
+            }]
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.candidates) {
+          resultDiv.innerHTML = `
+            <div class="section success">
+              <h2>✅ Model Works!</h2>
+              <p><strong>Version:</strong> ${version}</p>
+              <p><strong>Model:</strong> ${modelName}</p>
+              <p><strong>Response:</strong> ${data.candidates[0].content.parts[0].text}</p>
+              <p><strong>Use this URL pattern:</strong></p>
+              <pre>https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=YOUR_API_KEY</pre>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="section error">
+              <h2>❌ Model Failed</h2>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          `;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="section error">
+            <h2>❌ Error</h2>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    });
+
+    function testSpecificModel(version, modelName) {
+      document.getElementById('apiKeyInput').dispatchEvent(new Event('input'));
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = `<div class="section"><h2>Testing ${version}/${modelName}...</h2></div>`;
+
+      fetch(`https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: "Say 'Hello' if you can read this."
+            }]
+          }]
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.candidates) {
+          resultDiv.innerHTML = `
+            <div class="section success">
+              <h2>✅ SUCCESS!</h2>
+              <p><strong>Version:</strong> ${version}</p>
+              <p><strong>Model:</strong> ${modelName}</p>
+              <p><strong>Response:</strong> ${data.candidates[0].content.parts[0].text}</p>
+              <p><strong>Use this in your code:</strong></p>
+              <pre>const apiUrl = \`https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=\${GEMINI_API_KEY}\`;</pre>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="section error">
+              <h2>❌ Failed</h2>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          `;
+        }
+      })
+      .catch(err => {
+        resultDiv.innerHTML = `
+          <div class="section error">
+            <h2>❌ Error</h2>
+            <p>${err.message}</p>
+          </div>
+        `;
+      });
+    }
+
+    window.testSpecificModel = testSpecificModel;
+  </script>
+</body>
+</html>
+

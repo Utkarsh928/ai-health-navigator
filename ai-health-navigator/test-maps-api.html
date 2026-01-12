@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Google Maps API Key</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+    .success { background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    .error { background: #ffebee; color: #c62828; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    .testing { background: #fff3e0; color: #f57c00; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    #map { width: 100%; height: 500px; border: 2px solid #ddd; border-radius: 8px; margin-top: 20px; }
+    button { padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+    button:hover { background: #45a049; }
+    pre { background: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>🗺️ Testing Google Maps API Key</h1>
+  <p>Testing API key: <strong>AIzaSyBwJPkSiVniPGupNmK4jSMTIhGqE7gxxJ8</strong></p>
+  
+  <button id="testBtn">Test API Key & Load Map</button>
+  <div id="result"></div>
+  <div id="map"></div>
+
+  <script>
+    const MAPS_API_KEY = "AIzaSyBwJPkSiVniPGupNmK4jSMTIhGqE7gxxJ8";
+    
+    document.getElementById('testBtn').addEventListener('click', () => {
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = '<div class="testing">Loading Google Maps API...</div>';
+
+      // Load Google Maps API
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&callback=initMap&loading=async`;
+      script.async = true;
+      script.defer = true;
+      
+      script.onerror = () => {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <h3>❌ Failed to Load Google Maps API</h3>
+            <p>Possible issues:</p>
+            <ul>
+              <li>API key is invalid</li>
+              <li>Maps JavaScript API is not enabled</li>
+              <li>Network error</li>
+            </ul>
+          </div>
+        `;
+      };
+      
+      document.head.appendChild(script);
+    });
+
+    // Initialize map when API loads
+    window.initMap = function() {
+      const resultDiv = document.getElementById('result');
+      
+      try {
+        // Test if Google Maps loaded successfully
+        if (typeof google === 'undefined' || !google.maps) {
+          throw new Error('Google Maps API not loaded');
+        }
+
+        // Create a simple map
+        const map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 15,
+          center: { lat: 40.7128, lng: -74.0060 }, // Default location (NYC)
+          mapTypeControl: true,
+          streetViewControl: true,
+          fullscreenControl: true
+        });
+
+        // Add a test marker
+        const marker = new google.maps.Marker({
+          position: { lat: 40.7128, lng: -74.0060 },
+          map: map,
+          title: 'Test Location',
+          animation: google.maps.Animation.DROP
+        });
+
+        // Add info window
+        const infoWindow = new google.maps.InfoWindow({
+          content: '<h3>✅ Google Maps API is Working!</h3><p>Your API key is valid and the map loaded successfully.</p>'
+        });
+
+        marker.addListener('click', () => {
+          infoWindow.open(map, marker);
+        });
+
+        // Open info window automatically
+        infoWindow.open(map, marker);
+
+        resultDiv.innerHTML = `
+          <div class="success">
+            <h3>✅ SUCCESS! Google Maps API Key is Working!</h3>
+            <p>The map loaded successfully. Your API key is valid.</p>
+            <p><strong>Next step:</strong> I'll now update your campus-map.html file with this API key.</p>
+          </div>
+        `;
+
+        // Store success for implementation
+        window.mapsApiKeyValid = true;
+        
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <h3>❌ Error Loading Map</h3>
+            <p><strong>Error:</strong> ${error.message}</p>
+            <p>Please check:</p>
+            <ul>
+              <li>Is Maps JavaScript API enabled in Google Cloud Console?</li>
+              <li>Is the API key correct?</li>
+              <li>Are there any restrictions on the API key?</li>
+            </ul>
+          </div>
+        `;
+        window.mapsApiKeyValid = false;
+      }
+    };
+  </script>
+</body>
+</html>
+

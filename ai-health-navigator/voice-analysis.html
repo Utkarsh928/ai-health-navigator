@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Voice Stress Analysis - AI Health Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .language-selector {
+      margin: 20px 0;
+      text-align: center;
+    }
+    .language-selector select {
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 2px solid #1976d2;
+      font-size: 16px;
+      background: white;
+      cursor: pointer;
+    }
+    .recording-indicator {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+    .recording-indicator.active {
+      display: block;
+    }
+    .pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .voice-controls {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .transcript-box {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      min-height: 50px;
+      border-left: 4px solid #1976d2;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="logo"><span class="material-icons">medical_services</span> AI Health Navigator</h1>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="symptom-checker.html">Symptom Checker</a>
+        <a href="symptom-sketch.html">Image Analysis</a>
+        <a href="voice-analysis.html" class="active">Voice Analysis</a>
+        <a href="calendar.html">Health Calendar</a>
+        <a href="campus-map.html">Campus Map</a>
+        <a href="health-todo.html">Mini-Doc</a>
+        <a href="dashboard.html">Dashboard</a>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h2>🎙️ Voice Stress Analysis</h2>
+      <p>Speak naturally and let AI analyze your voice for stress levels and emotional state</p>
+    </div>
+
+    <div class="card">
+      <div class="language-selector">
+        <label for="languageSelect"><strong>Select Language:</strong></label>
+        <select id="languageSelect">
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+          <option value="es-ES">Spanish (Spain)</option>
+          <option value="es-MX">Spanish (Mexico)</option>
+          <option value="fr-FR">French</option>
+          <option value="de-DE">German</option>
+          <option value="it-IT">Italian</option>
+          <option value="pt-BR">Portuguese (Brazil)</option>
+          <option value="zh-CN">Chinese (Simplified)</option>
+          <option value="ja-JP">Japanese</option>
+          <option value="ko-KR">Korean</option>
+          <option value="hi-IN">Hindi</option>
+          <option value="ar-SA">Arabic</option>
+          <option value="ru-RU">Russian</option>
+        </select>
+      </div>
+
+      <div class="voice-controls">
+        <button id="startBtn" class="primary-btn">🎤 Start Recording</button>
+        <button id="stopBtn" class="secondary-btn" disabled>⏹️ Stop Recording</button>
+      </div>
+
+      <div id="recordingIndicator" class="recording-indicator">
+        <div class="pulse">
+          <h3 style="color: #d32f2f;">🔴 Recording...</h3>
+          <p>Speak naturally. Your voice is being analyzed.</p>
+        </div>
+      </div>
+
+      <div id="voiceStatus" class="status-message"></div>
+
+      <div id="transcriptBox" class="transcript-box" style="display:none;">
+        <strong>📝 Transcript:</strong>
+        <div id="transcriptText"></div>
+      </div>
+
+      <div id="loading" class="loading" style="display:none;">Analyzing your voice with AI...</div>
+      <div id="voiceResult" class="result-box"></div>
+    </div>
+
+    <div class="info-box">
+      <h3>ℹ️ How it works:</h3>
+      <ul>
+        <li>Select your language from the dropdown</li>
+        <li>Click "Start Recording" and speak naturally for 10-30 seconds</li>
+        <li>The AI will analyze your voice for stress indicators and emotional state</li>
+        <li>Results include stress level, emotion, and wellness recommendations</li>
+        <li>This is for general wellness guidance only, not medical diagnosis</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="notifications.js"></script>
+  <script>
+    // Require authentication
+    requireAuth().then(user => {
+      console.log("User authenticated:", user.uid);
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    // Voice recognition setup
+    let recognition = null;
+    let transcript = "";
+    let isRecording = false;
+
+    function initSpeechRecognition() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert("Your browser doesn't support speech recognition. Please use Chrome, Edge, or Safari.");
+        return null;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      
+      const selectedLang = document.getElementById('languageSelect').value;
+      recognition.lang = selectedLang;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        isRecording = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+        document.getElementById('recordingIndicator').classList.add('active');
+        document.getElementById('voiceStatus').textContent = '🎙️ Listening...';
+        document.getElementById('voiceStatus').className = 'status-message success';
+        document.getElementById('transcriptBox').style.display = 'block';
+      };
+
+      recognition.onresult = (event) => {
+        transcript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+          if (!event.results[i].isFinal) {
+            transcript += " ";
+          }
+        }
+        document.getElementById('transcriptText').textContent = transcript;
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        document.getElementById('voiceStatus').textContent = '❌ Error: ' + event.error;
+        document.getElementById('voiceStatus').className = 'status-message error';
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        if (isRecording) {
+          // Auto-restart if still recording
+          try {
+            recognition.start();
+          } catch (e) {
+            console.log('Recognition ended');
+          }
+        }
+      };
+
+      return recognition;
+    }
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      if (!recognition) {
+        recognition = initSpeechRecognition();
+      }
+      
+      if (recognition) {
+        const selectedLang = document.getElementById('languageSelect').value;
+        recognition.lang = selectedLang;
+        transcript = "";
+        document.getElementById('transcriptText').textContent = '';
+        document.getElementById('voiceResult').innerHTML = '';
+        
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error('Error starting recognition:', e);
+        }
+      }
+    });
+
+    function stopRecording() {
+      isRecording = false;
+      if (recognition) {
+        recognition.stop();
+      }
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      document.getElementById('recordingIndicator').classList.remove('active');
+      
+      if (transcript.trim().length > 0) {
+        analyzeVoiceWithAI(transcript);
+      } else {
+        document.getElementById('voiceStatus').textContent = '⚠️ No speech detected. Please try again.';
+        document.getElementById('voiceStatus').className = 'status-message error';
+      }
+    }
+
+    document.getElementById('stopBtn').addEventListener('click', stopRecording);
+
+    async function analyzeVoiceWithAI(text) {
+      const resultEl = document.getElementById('voiceResult');
+      const loadingEl = document.getElementById('loading');
+      const statusEl = document.getElementById('voiceStatus');
+
+      if (!text || text.trim().length < 5) {
+        statusEl.textContent = '⚠️ Please speak a bit more for accurate analysis.';
+        statusEl.className = 'status-message error';
+        return;
+      }
+
+      // Show enhanced loading state
+      loadingEl.style.display = 'block';
+      loadingEl.innerHTML = '<div class="loading-spinner">⏳ Analyzing voice with AI...</div>';
+      resultEl.innerHTML = '';
+      statusEl.textContent = '⏳ Processing your voice...';
+      statusEl.className = 'status-message';
+
+      try {
+        // Validate API key
+        if (!GEMINI_API_KEY || GEMINI_API_KEY.length < 20) {
+          throw new Error("API key not configured properly");
+        }
+
+        const user = auth && auth.currentUser ? auth.currentUser : null;
+        const selectedLang = document.getElementById('languageSelect').value;
+        const langName = document.getElementById('languageSelect').options[document.getElementById('languageSelect').selectedIndex].text;
+
+        const prompt = `You are a student wellness AI assistant. Analyze the student's spoken text and return a structured analysis.
+
+The student spoke in: ${langName}
+
+Analyze the text and provide your response in this EXACT format:
+
+**Stress Level:** [Calm | Moderate Stress | High Stress]
+**Emotion:** [one word: calm, anxious, overwhelmed, happy, neutral, stressed, tired, energetic]
+**Confidence Score:** [number between 0 and 100]
+**Key Indicators:** [brief list of what you noticed]
+**Wellness Message:** [short supportive advice (2-3 sentences)]
+
+Rules:
+- Do NOT diagnose diseases
+- This is NOT medical advice
+- Be student-friendly and supportive
+- Focus on general wellness
+- If stress is high, provide encouraging self-care tips
+
+Student's speech transcript:
+"${text}"
+
+Provide your analysis now:`;
+
+        // Call Gemini API - use v1 with gemini-2.5-flash (working model)
+        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const response = await fetch(apiUrl,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: prompt
+                    }
+                  ]
+                }
+              ]
+            })
+          }
+        );
+
+        // Check response status first
+        if (!response.ok) {
+          let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error?.message || errorMsg;
+          } catch (e) {
+            // If JSON parsing fails, use status text
+          }
+          throw new Error("AI service error: " + errorMsg);
+        }
+
+        const data = await response.json();
+
+        // Handle API errors in response
+        if (data.error) {
+          throw new Error("AI service error: " + (data.error.message || "Unknown error"));
+        }
+
+        if (!data.candidates || !data.candidates.length) {
+          throw new Error("AI could not analyze the voice");
+        }
+
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        resultEl.innerHTML = `<div class="success-message">${aiResponse.replace(/\n/g, '<br>')}</div>`;
+
+        statusEl.textContent = '✅ Analysis complete!';
+        statusEl.className = 'status-message success';
+
+        // Save to Firestore
+        if (user && db) {
+          try {
+            await db.collection("voiceStressLogs").add({
+              userId: user.uid,
+              transcript: text,
+              language: selectedLang,
+              aiResult: aiResponse,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } catch (dbError) {
+            // Continue even if Firestore save fails
+          }
+        }
+
+      } catch (error) {
+        resultEl.innerHTML = `<div class="error-message">❌ AI could not analyze your voice right now.<br>${error.message}</div>`;
+        statusEl.textContent = '❌ Analysis failed';
+        statusEl.className = 'status-message error';
+      } finally {
+        loadingEl.style.display = 'none';
+      }
+    }
+
+    // Update language when changed
+    document.getElementById('languageSelect').addEventListener('change', () => {
+      if (recognition && isRecording) {
+        const selectedLang = document.getElementById('languageSelect').value;
+        recognition.lang = selectedLang;
+      }
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Key Test</title>
+</head>
+<body>
+  <h1>Testing Gemini API Key</h1>
+  <button id="testBtn">Test API Key</button>
+  <div id="result" style="margin-top: 20px; padding: 20px; background: #f5f5f5; border-radius: 8px;"></div>
+
+  <!-- Load Firebase scripts first -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  
+  <!-- Then load auth.js which contains the API key -->
+  <script src="auth.js"></script>
+  
+  <script>
+    // Wait for scripts to load
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('testBtn').addEventListener('click', async () => {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = 'Testing API key...';
+        
+        // Check if API key is loaded - try multiple ways
+        const apiKey = window.GEMINI_API_KEY || (typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : null);
+      console.log('API Key loaded:', apiKey ? 'Yes (length: ' + apiKey.length + ')' : 'No');
+      
+      if (!apiKey) {
+        resultDiv.innerHTML = '<p style="color: red;">❌ ERROR: API Key not found!</p>';
+        return;
+      }
+      
+      resultDiv.innerHTML += '<p>API Key found: ' + apiKey.substring(0, 20) + '...</p>';
+      
+      // Test with gemini-pro (correct model name)
+      try {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+        console.log('Testing URL:', apiUrl.substring(0, 100) + '...');
+        
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: "Say 'Hello, API is working!' if you can read this."
+              }]
+            }]
+          })
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response OK:', response.ok);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          resultDiv.innerHTML += '<p style="color: red;">❌ HTTP Error ' + response.status + ': ' + response.statusText + '</p>';
+          resultDiv.innerHTML += '<pre style="background: #ffebee; padding: 10px; border-radius: 4px; overflow-x: auto;">' + errorText + '</pre>';
+          return;
+        }
+        
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (data.error) {
+          resultDiv.innerHTML += '<p style="color: red;">❌ API Error: ' + data.error.message + '</p>';
+          resultDiv.innerHTML += '<pre style="background: #ffebee; padding: 10px; border-radius: 4px;">' + JSON.stringify(data.error, null, 2) + '</pre>';
+        } else if (data.candidates && data.candidates.length > 0) {
+          const text = data.candidates[0].content.parts[0].text;
+          resultDiv.innerHTML += '<p style="color: green;">✅ SUCCESS! API is working!</p>';
+          resultDiv.innerHTML += '<p><strong>Response:</strong> ' + text + '</p>';
+        } else {
+          resultDiv.innerHTML += '<p style="color: orange;">⚠️ Unexpected response format</p>';
+          resultDiv.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        }
+        
+      } catch (error) {
+        console.error('Test error:', error);
+        resultDiv.innerHTML += '<p style="color: red;">❌ Network Error: ' + error.message + '</p>';
+      }
+      });
+    });
+  </script>
+</body>
+</html>
+

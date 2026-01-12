@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - AI Health Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="logo"><span class="material-icons">medical_services</span> AI Health Navigator</h1>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="login.html" class="active">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <h2>Student Login / Sign Up</h2>
+      <p class="auth-subtitle">Access all health features after authentication</p>
+      
+      <div class="auth-tabs">
+        <button class="tab-btn active" id="loginTab">Login</button>
+        <button class="tab-btn" id="signupTab">Sign Up</button>
+      </div>
+
+      <div id="loginForm" class="auth-form">
+        <input type="email" id="loginEmail" placeholder="Email" required aria-label="Email address" aria-required="true">
+        <div class="password-wrapper">
+          <input type="password" id="loginPassword" placeholder="Password" required aria-label="Password" aria-required="true">
+          <button type="button" class="password-toggle" id="loginPasswordToggle" aria-label="Toggle password visibility">
+            <span class="material-icons">visibility</span>
+          </button>
+        </div>
+        <button id="loginBtn" class="primary-btn" aria-label="Login to account">Login</button>
+        <p id="loginStatus" class="status-message" role="status" aria-live="polite"></p>
+      </div>
+
+      <div id="signupForm" class="auth-form" style="display:none;">
+        <input type="email" id="signupEmail" placeholder="Email" required aria-label="Email address" aria-required="true">
+        <div class="password-wrapper">
+          <input type="password" id="signupPassword" placeholder="Password (min 6 characters)" required aria-label="Password (minimum 6 characters)" aria-required="true" minlength="6">
+          <button type="button" class="password-toggle" id="signupPasswordToggle" aria-label="Toggle password visibility">
+            <span class="material-icons">visibility</span>
+          </button>
+        </div>
+        <button id="signupBtn" class="primary-btn" aria-label="Create new account">Sign Up</button>
+        <p id="signupStatus" class="status-message" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="auth-footer">
+        <p>After logging in, you'll have access to:</p>
+        <ul>
+          <li>AI Symptom Checker</li>
+          <li>Symptom Image Analysis</li>
+          <li>Voice Stress Analysis</li>
+          <li>Health Dashboard</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="mobile-nav.js"></script>
+  <script src="toast.js"></script>
+  <script>
+    // Password visibility toggle functionality
+    function setupPasswordToggle(toggleId, passwordId) {
+      const toggle = document.getElementById(toggleId);
+      const password = document.getElementById(passwordId);
+      
+      if (toggle && password) {
+        toggle.addEventListener('click', function() {
+          const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+          password.setAttribute('type', type);
+          
+          const icon = toggle.querySelector('.material-icons');
+          icon.textContent = type === 'password' ? 'visibility' : 'visibility_off';
+          toggle.setAttribute('aria-label', type === 'password' ? 'Show password' : 'Hide password');
+        });
+      }
+    }
+
+    // Setup password toggles
+    setupPasswordToggle('loginPasswordToggle', 'loginPassword');
+    setupPasswordToggle('signupPasswordToggle', 'signupPassword');
+
+    // Tab switching
+    document.getElementById('loginTab').addEventListener('click', () => {
+      document.getElementById('loginTab').classList.add('active');
+      document.getElementById('signupTab').classList.remove('active');
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('signupForm').style.display = 'none';
+      // Clear status messages when switching tabs
+      document.getElementById('loginStatus').textContent = '';
+      document.getElementById('signupStatus').textContent = '';
+    });
+
+    document.getElementById('signupTab').addEventListener('click', () => {
+      document.getElementById('signupTab').classList.add('active');
+      document.getElementById('loginTab').classList.remove('active');
+      document.getElementById('signupForm').style.display = 'block';
+      document.getElementById('loginForm').style.display = 'none';
+      // Clear status messages when switching tabs
+      document.getElementById('loginStatus').textContent = '';
+      document.getElementById('signupStatus').textContent = '';
+    });
+
+    // Enhanced form validation
+    function validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    }
+
+    // Real-time validation
+    const loginEmail = document.getElementById('loginEmail');
+    const loginPassword = document.getElementById('loginPassword');
+    const signupEmail = document.getElementById('signupEmail');
+    const signupPassword = document.getElementById('signupPassword');
+
+    if (loginEmail) {
+      loginEmail.addEventListener('blur', function() {
+        if (this.value && !validateEmail(this.value)) {
+          this.style.borderColor = 'var(--danger)';
+          this.setAttribute('aria-invalid', 'true');
+        } else {
+          this.style.borderColor = '';
+          this.setAttribute('aria-invalid', 'false');
+        }
+      });
+    }
+
+    if (signupEmail) {
+      signupEmail.addEventListener('blur', function() {
+        if (this.value && !validateEmail(this.value)) {
+          this.style.borderColor = 'var(--danger)';
+          this.setAttribute('aria-invalid', 'true');
+        } else {
+          this.style.borderColor = '';
+          this.setAttribute('aria-invalid', 'false');
+        }
+      });
+    }
+
+    if (signupPassword) {
+      signupPassword.addEventListener('input', function() {
+        if (this.value.length > 0 && this.value.length < 6) {
+          this.style.borderColor = 'var(--danger)';
+          this.setAttribute('aria-invalid', 'true');
+        } else {
+          this.style.borderColor = '';
+          this.setAttribute('aria-invalid', 'false');
+        }
+      });
+    }
+
+    // Login
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = loginEmail.value.trim();
+      const password = loginPassword.value;
+      const statusEl = document.getElementById('loginStatus');
+
+      // Clear previous errors
+      loginEmail.style.borderColor = '';
+      loginPassword.style.borderColor = '';
+
+      if (!email || !password) {
+        statusEl.textContent = 'Please fill in all fields';
+        statusEl.className = 'status-message error';
+        if (!email) loginEmail.style.borderColor = 'var(--danger)';
+        if (!password) loginPassword.style.borderColor = 'var(--danger)';
+        loginEmail.focus();
+        return;
+      }
+
+      if (!validateEmail(email)) {
+        statusEl.textContent = 'Please enter a valid email address';
+        statusEl.className = 'status-message error';
+        loginEmail.style.borderColor = 'var(--danger)';
+        loginEmail.focus();
+        return;
+      }
+
+      // Disable button during request
+      const loginBtn = document.getElementById('loginBtn');
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Logging in...';
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        statusEl.textContent = '✅ Login successful! Redirecting...';
+        statusEl.className = 'status-message success';
+        
+        // Show success toast
+        if (typeof toast !== 'undefined') {
+          toast.success('Welcome back! Redirecting...', 'Login Successful', 2000);
+        }
+        
+        setTimeout(() => {
+          window.location.href = 'symptom-checker.html';
+        }, 1000);
+      } catch (err) {
+        let errorMessage = 'Login failed. ';
+        if (err.code === 'auth/user-not-found') {
+          errorMessage += 'No account found with this email.';
+        } else if (err.code === 'auth/wrong-password') {
+          errorMessage += 'Incorrect password.';
+        } else if (err.code === 'auth/invalid-email') {
+          errorMessage += 'Invalid email address.';
+        } else {
+          errorMessage += err.message;
+        }
+        statusEl.textContent = '❌ ' + errorMessage;
+        statusEl.className = 'status-message error';
+        
+        // Show error toast
+        if (typeof toast !== 'undefined') {
+          toast.error(errorMessage, 'Login Failed', 6000);
+        }
+        
+        loginPassword.focus();
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Login';
+      }
+    });
+
+    // Signup
+    document.getElementById('signupBtn').addEventListener('click', async () => {
+      const email = signupEmail.value.trim();
+      const password = signupPassword.value;
+      const statusEl = document.getElementById('signupStatus');
+
+      // Clear previous errors
+      signupEmail.style.borderColor = '';
+      signupPassword.style.borderColor = '';
+
+      if (!email || !password) {
+        statusEl.textContent = 'Please fill in all fields';
+        statusEl.className = 'status-message error';
+        if (!email) signupEmail.style.borderColor = 'var(--danger)';
+        if (!password) signupPassword.style.borderColor = 'var(--danger)';
+        signupEmail.focus();
+        return;
+      }
+
+      if (!validateEmail(email)) {
+        statusEl.textContent = 'Please enter a valid email address';
+        statusEl.className = 'status-message error';
+        signupEmail.style.borderColor = 'var(--danger)';
+        signupEmail.focus();
+        return;
+      }
+
+      if (password.length < 6) {
+        statusEl.textContent = 'Password must be at least 6 characters';
+        statusEl.className = 'status-message error';
+        signupPassword.style.borderColor = 'var(--danger)';
+        signupPassword.focus();
+        return;
+      }
+
+      // Disable button during request
+      const signupBtn = document.getElementById('signupBtn');
+      signupBtn.disabled = true;
+      signupBtn.textContent = 'Creating account...';
+
+      try {
+        await auth.createUserWithEmailAndPassword(email, password);
+        statusEl.textContent = '✅ Account created! Redirecting...';
+        statusEl.className = 'status-message success';
+        
+        // Show success toast
+        if (typeof toast !== 'undefined') {
+          toast.success('Account created successfully! Welcome!', 'Success', 2000);
+        }
+        
+        setTimeout(() => {
+          window.location.href = 'symptom-checker.html';
+        }, 1000);
+      } catch (err) {
+        let errorMessage = 'Sign up failed. ';
+        if (err.code === 'auth/email-already-in-use') {
+          errorMessage += 'An account with this email already exists. Try logging in instead.';
+        } else if (err.code === 'auth/invalid-email') {
+          errorMessage += 'Invalid email address.';
+        } else if (err.code === 'auth/weak-password') {
+          errorMessage += 'Password is too weak. Please use a stronger password.';
+        } else {
+          errorMessage += err.message;
+        }
+        statusEl.textContent = '❌ ' + errorMessage;
+        statusEl.className = 'status-message error';
+        
+        // Show error toast
+        if (typeof toast !== 'undefined') {
+          toast.error(errorMessage, 'Sign Up Failed', 7000);
+        }
+        
+        signupPassword.focus();
+      } finally {
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Sign Up';
+      }
+    });
+
+    // Check if already logged in
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        window.location.href = 'symptom-checker.html';
+      }
+    });
+  </script>
+</body>
+</html>
+

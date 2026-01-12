@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Health Navigator - Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="home-theme.css">
+</head>
+<body>
+  <!-- Skip to main content for accessibility -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-container">
+      <h1 class="logo"><span class="material-icons" aria-hidden="true">medical_services</span> AI Health Navigator</h1>
+      <div class="nav-links" role="menubar">
+        <a href="index.html" class="active" role="menuitem" aria-label="Home page">Home</a>
+        <a href="login.html" id="navLogin" role="menuitem" aria-label="Login to your account">Login</a>
+        <a href="dashboard.html" id="navDashboard" style="display:none;" role="menuitem" aria-label="View your health dashboard">Dashboard</a>
+        <button id="navLogout" style="display:none;" class="logout-btn" role="menuitem" aria-label="Logout from your account">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main-content">
+    <!-- Hero Section - Clean Medical Theme -->
+    <section class="hero-clean">
+      <div class="hero-wrapper">
+        <div class="hero-text-content">
+          <div class="hero-subtitle">
+            <span class="material-icons">local_hospital</span>
+            <span>Student Health & Wellness Platform</span>
+          </div>
+          <h1 class="hero-main-title">
+            Smart Health Management<br>
+            <span class="highlight-text">For Modern Students</span>
+          </h1>
+          <p class="hero-lead">
+            Access comprehensive health tools powered by AI. Monitor your wellness, 
+            get instant insights, and stay on top of your health—all in one place.
+          </p>
+          <div class="hero-actions">
+            <a href="login.html" class="btn-primary-large" aria-label="Get started with AI Health Navigator">
+              Start Free Today
+              <span class="material-icons">chevron_right</span>
+            </a>
+            <a href="#how-it-works" class="btn-secondary-large">
+              <span class="material-icons">info</span>
+              How It Works
+            </a>
+          </div>
+        </div>
+        <div class="hero-image-area">
+          <div class="medical-illustration">
+            <div class="illustration-card card-top">
+              <span class="material-icons">favorite</span>
+              <span>Heart Rate</span>
+            </div>
+            <div class="illustration-card card-middle">
+              <span class="material-icons">trending_up</span>
+              <span>Health Trends</span>
+            </div>
+            <div class="illustration-card card-bottom">
+              <span class="material-icons">check_circle</span>
+              <span>Wellness Score</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section - Clean Grid -->
+    <section id="features" class="features-clean">
+      <div class="container">
+        <div class="section-intro">
+          <span class="section-tag">Our Services</span>
+          <h2 class="section-heading">Complete Health Management Suite</h2>
+          <p class="section-subtitle">
+            Everything you need to take control of your health and wellness as a student
+          </p>
+        </div>
+        
+        <div class="features-grid-clean">
+          <article class="service-card">
+            <div class="service-icon-box blue">
+              <span class="material-icons">medical_services</span>
+            </div>
+            <h3>AI Symptom Checker</h3>
+            <p>Describe your symptoms and receive AI-powered health guidance with personalized recommendations.</p>
+            <a href="symptom-checker.html" class="service-link">
+              Get Started
+              <span class="material-icons">arrow_right_alt</span>
+            </a>
+          </article>
+
+          <article class="service-card">
+            <div class="service-icon-box green">
+              <span class="material-icons">camera_alt</span>
+            </div>
+            <h3>Image Analysis</h3>
+            <p>Upload images or use your camera for visual symptom analysis and wellness insights.</p>
+            <a href="symptom-sketch.html" class="service-link">
+              Get Started
+              <span class="material-icons">arrow_right_alt</span>
+            </a>
+          </article>
+
+          <article class="service-card">
+            <div class="service-icon-box purple">
+              <span class="material-icons">mic</span>
+            </div>
+            <h3>Voice Stress Analysis</h3>
+            <p>Analyze your voice patterns to assess stress levels and emotional wellness in real-time.</p>
+            <a href="voice-analysis.html" class="service-link">
+              Get Started
+              <span class="material-icons">arrow_right_alt</span>
+            </a>
+          </article>
+
+          <article class="service-card">
+            <div class="service-icon-box orange">
+              <span class="material-icons">bar_chart</span>
+            </div>
+            <h3>Health Dashboard</h3>
+            <p>View all your health data, trends, and analytics in one comprehensive dashboard.</p>
+            <a href="dashboard.html" class="service-link">
+              View Dashboard
+              <span class="material-icons">arrow_right_alt</span>
+            </a>
+          </article>
+
+          <article class="service-card">
+            <div class="service-icon-box teal">
+              <span class="material-icons">map</span>
+            </div>
+            <h3>Campus Health Map</h3>
+            <p>Locate health services on campus including clinics, counseling centers, and gyms.</p>
+            <a href="campus-map.html" class="service-link">
+              View Map
+              <span class="material-icons">arrow_right_alt</span>
+            </a>
+          </article>
+
+          <article class="service-card">
+            <div class="service-icon-box red">
+              <span class="material-icons">calendar_today</span>
+            </div>
+            <h3>Health Calendar</h3>
+            <p>Track appointments, medications, and health events with our integrated calendar system.</p>
+            <a href="calendar.html" class="service-link">
+              Open Calendar
+              <span class="material-icons">arrow_right_alt</span>
+            </a>
+          </article>
+
+          <article class="service-card">
+            <div class="service-icon-box" style="background: linear-gradient(135deg, #00897b, #26a69a);">
+              <span class="material-icons">assignment</span>
+            </div>
+            <h3>MiniDoc- Health Doctor To-Do List</h3>
+            <p>Get personalized daily recovery plans with exercises, diet, and self-care tasks based on your health information.</p>
+            <a href="health-todo.html" class="service-link">
+              Get Started
+              <span class="material-icons">arrow_right_alt</span>
+            </a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+      <div class="container">
+        <div class="section-intro">
+          <span class="section-tag">Simple Process</span>
+          <h2 class="section-heading">How It Works</h2>
+          <p class="section-subtitle">Get started in three easy steps</p>
+        </div>
+        
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3>Create Account</h3>
+              <p>Sign up with your student email in less than a minute</p>
+            </div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3>Use Health Tools</h3>
+              <p>Access AI-powered tools to check symptoms, analyze images, or track stress</p>
+            </div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3>Monitor Progress</h3>
+              <p>View your health trends and insights on the comprehensive dashboard</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Benefits Section -->
+    <section class="benefits-clean">
+      <div class="container">
+        <div class="benefits-row">
+          <div class="benefit-box">
+            <span class="material-icons">shield</span>
+            <h4>Secure & Private</h4>
+            <p>Your health data is encrypted and never shared with third parties</p>
+          </div>
+          <div class="benefit-box">
+            <span class="material-icons">flash_on</span>
+            <h4>Instant Insights</h4>
+            <p>Get immediate health guidance powered by advanced AI technology</p>
+          </div>
+          <div class="benefit-box">
+            <span class="material-icons">devices</span>
+            <h4>Always Accessible</h4>
+            <p>Access your health tools anywhere, anytime from any device</p>
+          </div>
+          <div class="benefit-box">
+            <span class="material-icons">support</span>
+            <h4>24/7 Support</h4>
+            <p>Get help whenever you need it with our dedicated support team</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" role="contentinfo">
+    <p>&copy; 2024 AI Health Navigator. For educational purposes only.</p>
+  </footer>
+
+  <script src="auth.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="notifications.js"></script>
+  <script src="mobile-nav.js"></script>
+  <script>
+    // Check auth state and update nav (with null checks)
+    if (typeof auth !== 'undefined' && auth) {
+      auth.onAuthStateChanged(user => {
+        const navLogin = document.getElementById('navLogin');
+        const navDashboard = document.getElementById('navDashboard');
+        const navLogout = document.getElementById('navLogout');
+        
+        if (user) {
+          if (navLogin) navLogin.style.display = 'none';
+          if (navDashboard) navDashboard.style.display = 'inline-block';
+          if (navLogout) navLogout.style.display = 'inline-block';
+        } else {
+          if (navLogin) navLogin.style.display = 'inline-block';
+          if (navDashboard) navDashboard.style.display = 'none';
+          if (navLogout) navLogout.style.display = 'none';
+        }
+      });
+
+      const navLogoutBtn = document.getElementById('navLogout');
+      if (navLogoutBtn) {
+        navLogoutBtn.addEventListener('click', async () => {
+          try {
+            await auth.signOut();
+            window.location.href = 'index.html';
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>

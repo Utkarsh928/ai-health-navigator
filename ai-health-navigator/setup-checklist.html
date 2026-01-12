@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Key Setup Checklist</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .step {
+      padding: 20px;
+      margin: 15px 0;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      background: #f9f9f9;
+      transition: all 0.3s;
+    }
+    .step:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    .step.completed {
+      background: #e8f5e9;
+      border-color: #4caf50;
+    }
+    .step-number {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      background: #667eea;
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 30px;
+      font-weight: bold;
+      margin-right: 15px;
+    }
+    .step.completed .step-number {
+      background: #4caf50;
+    }
+    .step-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .step-content {
+      color: #666;
+      line-height: 1.6;
+      margin-left: 45px;
+    }
+    .step-content a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .step-content a:hover {
+      text-decoration: underline;
+    }
+    .step-content code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      color: #d63384;
+    }
+    .checkbox {
+      margin-left: 45px;
+      margin-top: 10px;
+    }
+    .checkbox input {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    .checkbox label {
+      margin-left: 8px;
+      cursor: pointer;
+      color: #555;
+    }
+    .action-btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-top: 10px;
+      font-weight: 500;
+      transition: background 0.3s;
+    }
+    .action-btn:hover {
+      background: #5568d3;
+    }
+    .test-section {
+      margin-top: 40px;
+      padding: 20px;
+      background: #e3f2fd;
+      border-radius: 10px;
+      border-left: 4px solid #2196f3;
+    }
+    .test-section h2 {
+      color: #1976d2;
+      margin-top: 0;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 10px 0;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 12px 24px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 500;
+      margin: 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .success-msg {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 15px;
+      border-left: 4px solid #4caf50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔑 Gemini API Key Setup Checklist</h1>
+    
+    <div class="step" id="step1">
+      <span class="step-number">1</span>
+      <div class="step-title">Go to Google Cloud Console</div>
+      <div class="step-content">
+        <p>Open <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> and sign in with your Google account.</p>
+        <div class="checkbox">
+          <input type="checkbox" id="check1" onchange="updateStep(1)">
+          <label for="check1">I've opened Google Cloud Console</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step2">
+      <span class="step-number">2</span>
+      <div class="step-title">Create a New Project</div>
+      <div class="step-content">
+        <p>Click the project dropdown → "NEW PROJECT" → Name it "AI Health Navigator" → Click "CREATE"</p>
+        <div class="checkbox">
+          <input type="checkbox" id="check2" onchange="updateStep(2)">
+          <label for="check2">Project created</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step3">
+      <span class="step-number">3</span>
+      <div class="step-title">Enable Generative Language API</div>
+      <div class="step-content">
+        <p>Search for "Generative Language API" → Click on it → Click "ENABLE" button</p>
+        <a href="https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com" target="_blank" class="action-btn">Open API Page</a>
+        <div class="checkbox">
+          <input type="checkbox" id="check3" onchange="updateStep(3)">
+          <label for="check3">API enabled</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step4">
+      <span class="step-number">4</span>
+      <div class="step-title">Create API Key</div>
+      <div class="step-content">
+        <p>Go to "APIs & Services" → "Credentials" → "+ CREATE CREDENTIALS" → "API key"</p>
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="action-btn">Open Credentials Page</a>
+        <div class="checkbox">
+          <input type="checkbox" id="check4" onchange="updateStep(4)">
+          <label for="check4">API key created and copied</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step5">
+      <span class="step-number">5</span>
+      <div class="step-title">Restrict API Key (Security)</div>
+      <div class="step-content">
+        <p>Click "RESTRICT KEY" → Under "API restrictions" select "Restrict key" → Choose "Generative Language API" → Click "SAVE"</p>
+        <div class="checkbox">
+          <input type="checkbox" id="check5" onchange="updateStep(5)">
+          <label for="check5">API key restricted</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step6">
+      <span class="step-number">6</span>
+      <div class="step-title">Update Your Code</div>
+      <div class="step-content">
+        <p>Open <code>auth.js</code> file and replace the old API key with your new one.</p>
+        <div class="checkbox">
+          <input type="checkbox" id="check6" onchange="updateStep(6)">
+          <label for="check6">Code updated</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>🧪 Test Your API Key</h2>
+      <p>Paste your API key below and test it:</p>
+      <input type="text" id="apiKeyInput" placeholder="Paste your API key here (starts with AIzaSy...)" />
+      <button onclick="testAPIKey()">Test API Key</button>
+      <div id="testResult"></div>
+    </div>
+
+    <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;">
+      <h3 style="margin-top: 0; color: #856404;">💡 Tips</h3>
+      <ul style="color: #856404;">
+        <li>Keep your API key secret - don't share it publicly</li>
+        <li>If you get "billing required" error, add a payment method (free credits available)</li>
+        <li>Free tier allows limited requests per day</li>
+        <li>If quota exceeded, wait 24 hours or upgrade plan</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    function updateStep(stepNum) {
+      const step = document.getElementById(`step${stepNum}`);
+      const checkbox = document.getElementById(`check${stepNum}`);
+      
+      if (checkbox.checked) {
+        step.classList.add('completed');
+        // Save to localStorage
+        localStorage.setItem(`step${stepNum}`, 'completed');
+      } else {
+        step.classList.remove('completed');
+        localStorage.removeItem(`step${stepNum}`);
+      }
+    }
+
+    // Load saved progress
+    for (let i = 1; i <= 6; i++) {
+      if (localStorage.getItem(`step${i}`) === 'completed') {
+        document.getElementById(`check${i}`).checked = true;
+        updateStep(i);
+      }
+    }
+
+    async function testAPIKey() {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      const resultDiv = document.getElementById('testResult');
+      
+      if (!apiKey) {
+        resultDiv.innerHTML = '<div style="color: red; margin-top: 10px;">Please enter an API key</div>';
+        return;
+      }
+
+      if (!apiKey.startsWith('AIzaSy')) {
+        resultDiv.innerHTML = '<div style="color: red; margin-top: 10px;">Invalid API key format. Should start with "AIzaSy"</div>';
+        return;
+      }
+
+      resultDiv.innerHTML = '<div style="margin-top: 10px;">Testing API key...</div>';
+
+      try {
+        // Test by listing models
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const data = await response.json();
+
+        if (response.ok && data.models) {
+          const modelsWithGenerate = data.models.filter(m => 
+            m.supportedGenerationMethods?.includes('generateContent')
+          );
+          
+          resultDiv.innerHTML = `
+            <div class="success-msg">
+              <h3>✅ API Key is VALID!</h3>
+              <p>Found ${data.models.length} total models</p>
+              <p>${modelsWithGenerate.length} models support generateContent</p>
+              <p><strong>Available models:</strong></p>
+              <ul>
+                ${modelsWithGenerate.slice(0, 5).map(m => `<li>${m.name.replace('models/', '')}</li>`).join('')}
+              </ul>
+              <p style="margin-top: 15px;">
+                <strong>Next step:</strong> Update <code>auth.js</code> with this API key, then test your symptom checker!
+              </p>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div style="background: #ffebee; color: #c62828; padding: 15px; border-radius: 6px; margin-top: 10px;">
+              <h3>❌ API Key Test Failed</h3>
+              <p><strong>Error:</strong> ${data.error?.message || 'Unknown error'}</p>
+              <p><strong>Possible issues:</strong></p>
+              <ul>
+                <li>API not enabled - Go back to Step 3</li>
+                <li>Invalid API key - Check if you copied it correctly</li>
+                <li>Billing required - Add payment method in Google Cloud</li>
+              </ul>
+            </div>
+          `;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div style="background: #ffebee; color: #c62828; padding: 15px; border-radius: 6px; margin-top: 10px;">
+            <h3>❌ Error</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
+
+

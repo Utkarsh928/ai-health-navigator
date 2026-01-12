@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Symptom Checker - AI Health Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="logo"><span class="material-icons">medical_services</span> AI Health Navigator</h1>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="symptom-checker.html" class="active">Symptom Checker</a>
+        <a href="symptom-sketch.html">Image Analysis</a>
+        <a href="voice-analysis.html">Voice Analysis</a>
+        <a href="calendar.html">Health Calendar</a>
+        <a href="campus-map.html">Campus Map</a>
+        <a href="health-todo.html">Mini-Doc</a>
+        <a href="dashboard.html">Dashboard</a>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h2><span class="material-icons">medical_services</span> AI Symptom Checker</h2>
+      <p>Describe your symptoms and get AI-powered health guidance</p>
+    </div>
+
+    <div class="card">
+      <div class="form-group">
+        <label for="symptoms">Describe your symptoms:</label>
+        <textarea id="symptoms" rows="6" placeholder="Example: I've been experiencing headaches for the past 3 days, along with fatigue and difficulty concentrating..."></textarea>
+      </div>
+      <button id="checkBtn" class="primary-btn">Analyze Symptoms</button>
+      <div id="loading" class="loading" style="display:none;">Analyzing symptoms with AI...</div>
+      <div id="result" class="result-box"></div>
+    </div>
+
+    <div class="info-box">
+      <h3><span class="material-icons">info</span> Important Information</h3>
+      <ul>
+        <li>This tool is for educational purposes only</li>
+        <li>It does not provide medical diagnosis</li>
+        <li>Always consult a healthcare professional for serious symptoms</li>
+        <li>For emergencies, call your local emergency number</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="notifications.js"></script>
+  <script src="mobile-nav.js"></script>
+  <script src="toast.js"></script>
+  <script>
+    // Require authentication
+    requireAuth().then(user => {
+      console.log("User authenticated:", user.uid);
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    // Symptom checker
+    document.getElementById('checkBtn').addEventListener('click', async () => {
+      const symptoms = document.getElementById('symptoms').value.trim();
+      const resultEl = document.getElementById('result');
+      const loadingEl = document.getElementById('loading');
+      const checkBtn = document.getElementById('checkBtn');
+
+      if (!symptoms) {
+        if (typeof toast !== 'undefined') {
+          toast.warning('Please describe your symptoms before analyzing.', 'Missing Information');
+        } else {
+          alert("Please describe your symptoms");
+        }
+        document.getElementById('symptoms').focus();
+        return;
+      }
+
+      // Show enhanced loading state
+      loadingEl.style.display = 'block';
+      loadingEl.innerHTML = '<div class="loading-spinner">⏳ Analyzing symptoms with AI...</div>';
+      resultEl.innerHTML = '';
+      checkBtn.disabled = true;
+      checkBtn.textContent = 'Analyzing...';
+
+      try {
+        // Get API key - check both global and local scope
+        const apiKey = window.GEMINI_API_KEY || (typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : null);
+        
+        if (!apiKey || apiKey.length < 20) {
+          throw new Error("API Key not found! Please check if auth.js is loaded correctly.");
+        }
+
+        // Get user for saving data later
+        const user = auth && auth.currentUser ? auth.currentUser : null;
+
+        // Call Gemini API - use v1 with gemini-2.5-flash (working model)
+        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const response = await fetch(apiUrl,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: `You are an AI health assistant for students. Analyze the following symptoms and provide guidance.
+
+Classify the response into one of these categories:
+1. Visit a Doctor - for serious or persistent symptoms
+2. Talk to a Counselor - for mental health concerns
+3. Home Care & Rest - for mild symptoms
+
+Rules:
+- Do NOT diagnose specific diseases
+- Use simple, student-friendly language
+- Be supportive and encouraging
+- Provide general wellness advice
+- If symptoms are severe, recommend seeing a doctor
+
+Student's symptoms:
+${symptoms}
+
+Provide a clear, helpful response with:
+- Category classification
+- General wellness advice
+- When to seek professional help
+- Self-care recommendations`
+                    }
+                  ]
+                }
+              ]
+            })
+          }
+        );
+
+        // Check response status first
+        if (!response.ok) {
+          let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error?.message || errorMsg;
+          } catch (e) {
+            // If JSON parsing fails, use status text
+          }
+          throw new Error("AI service error: " + errorMsg);
+        }
+
+        const data = await response.json();
+
+        // Handle API errors in response
+        if (data.error) {
+          throw new Error("AI service error: " + (data.error.message || "Unknown error"));
+        }
+
+        if (!data.candidates || !data.candidates.length) {
+          throw new Error("AI could not generate a response");
+        }
+
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        resultEl.innerHTML = `<div class="success-message animate-fade-in">${aiResponse.replace(/\n/g, '<br>')}</div>`;
+
+        // Save AI response together with symptoms
+        if (user && db) {
+          try {
+            await db.collection("symptom_logs").add({
+              userId: user.uid,
+              symptoms: symptoms,
+              aiResponse: aiResponse,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Show success toast
+            if (typeof toast !== 'undefined') {
+              toast.success('Symptom check saved successfully!', 'Saved');
+            }
+          } catch (dbError) {
+            console.error('Save error:', dbError);
+            if (typeof toast !== 'undefined') {
+              toast.warning('Analysis complete, but couldn\'t save to dashboard.', 'Save Warning');
+            }
+          }
+        } else {
+          // Show success toast even if not logged in
+          if (typeof toast !== 'undefined') {
+            toast.success('Analysis complete!', 'Success');
+          }
+        }
+
+      } catch (error) {
+        console.error('Symptom check error:', error);
+        resultEl.innerHTML = `<div class="error-message animate-fade-in">❌ AI could not analyze your symptoms right now.<br><small>${error.message}</small><br><br><button onclick="document.getElementById('checkBtn').click()" class="primary-btn" style="margin-top:12px;">Try Again</button></div>`;
+        
+        // Show error toast
+        if (typeof toast !== 'undefined') {
+          toast.error('Failed to analyze symptoms. Please try again.', 'Error', 7000);
+        }
+      } finally {
+        loadingEl.style.display = 'none';
+        checkBtn.disabled = false;
+        checkBtn.textContent = 'Analyze Symptoms';
+      }
+    });
+  </script>
+</body>
+</html>
+

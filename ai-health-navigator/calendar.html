@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Health Calendar - AI Health Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ================= CALENDAR LAYOUT ================= */
+.calendar-container {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 28px;
+  margin-top: 30px;
+}
+
+/* ================= MAIN + SIDEBAR ================= */
+.calendar-main,
+.calendar-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.9));
+  padding: 24px;
+  border-radius: 18px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow:
+    0 25px 60px rgba(30, 64, 175, 0.15),
+    inset 0 0 25px rgba(255,255,255,0.4);
+}
+
+.calendar-sidebar {
+  height: fit-content;
+}
+
+/* ================= HEADER ================= */
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.calendar-month-year {
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(90deg, #38bdf8, #6366f1);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ================= NAV ================= */
+.calendar-nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.calendar-nav-btn {
+  padding: 9px 18px;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(56,189,248,0.4);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.calendar-nav-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(99,102,241,0.55);
+}
+
+/* ================= GRID ================= */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+/* ================= DAY HEADERS ================= */
+.calendar-day-header {
+  text-align: center;
+  padding: 10px 0;
+  font-weight: 700;
+  font-size: 14px;
+  color: #475569;
+}
+
+/* ================= DAYS ================= */
+.calendar-day {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  padding: 8px;
+  cursor: pointer;
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.95), rgba(248,250,252,0.9));
+  border: 1px solid rgba(226,232,240,0.9);
+  transition:
+    transform 0.25s cubic-bezier(.22,1,.36,1),
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+.calendar-day:hover {
+  transform: translateY(-4px) scale(1.05);
+  background:
+    linear-gradient(180deg, #e0f2fe, #f0f9ff);
+  box-shadow: 0 18px 40px rgba(56,189,248,0.35);
+}
+
+/* ================= STATES ================= */
+.calendar-day.other-month {
+  background: rgba(241,245,249,0.7);
+  color: #cbd5e1;
+}
+
+.calendar-day.today {
+  background:
+    linear-gradient(135deg, #38bdf8, #6366f1);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 15px 40px rgba(99,102,241,0.55);
+}
+
+.calendar-day.has-event {
+  border: 2px solid #f59e0b;
+  background:
+    linear-gradient(180deg, #fff7ed, #ffedd5);
+}
+
+.calendar-day.has-event.today {
+  background:
+    linear-gradient(135deg, #f59e0b, #fb923c);
+}
+
+/* ================= DAY NUMBER ================= */
+.calendar-day-number {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ================= EVENT DOT ================= */
+.calendar-event-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #fb923c);
+  margin: 6px auto 0;
+  box-shadow: 0 0 10px rgba(251,146,60,0.8);
+}
+
+/* ================= FORM ================= */
+.event-form {
+  margin-top: 25px;
+}
+
+.event-form input,
+.event-form textarea,
+.event-form select {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  font-family: inherit;
+  background: rgba(255,255,255,0.9);
+  transition: border 0.25s ease, box-shadow 0.25s ease;
+}
+
+.event-form input:focus,
+.event-form textarea:focus,
+.event-form select:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56,189,248,0.25);
+}
+
+/* ================= EVENT TYPES ================= */
+.event-type-badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.event-type-clinic {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.event-type-medication {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.event-type-symptom {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.event-type-other {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+/* ================= EVENTS LIST ================= */
+.events-list {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* ================= EVENT ITEM ================= */
+.event-item {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.95), rgba(248,250,252,0.9));
+  border-left: 5px solid #38bdf8;
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 25px rgba(30,64,175,0.12);
+  transition: transform 0.25s ease;
+}
+
+.event-item:hover {
+  transform: translateY(-3px);
+}
+
+/* ================= EVENT HEADER ================= */
+.event-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.event-item-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.event-item-date {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.event-item-notes {
+  font-size: 14px;
+  color: #475569;
+  margin-top: 6px;
+}
+
+/* ================= ACTION BUTTONS ================= */
+.event-item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-small {
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+}
+
+.btn-small:hover {
+  transform: scale(1.1);
+}
+
+.btn-edit {
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: white;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 968px) {
+  .calendar-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="logo"><span class="material-icons">medical_services</span> AI Health Navigator</h1>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="symptom-checker.html">Symptom Checker</a>
+        <a href="symptom-sketch.html">Image Analysis</a>
+        <a href="voice-analysis.html">Voice Analysis</a>
+        <a href="calendar.html" class="active">Health Calendar</a>
+        <a href="campus-map.html">Campus Map</a>
+        <a href="health-todo.html">Mini-DOC</a>
+        <a href="dashboard.html">Dashboard</a>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h2>📅 Health Calendar</h2>
+      <p>Mark clinic visits, medications, symptoms, and health notes. Track your health over time.</p>
+    </div>
+
+    <div class="calendar-container">
+      <div class="calendar-main">
+        <div class="calendar-header">
+          <div class="calendar-nav">
+            <button class="calendar-nav-btn" id="prevMonth">←</button>
+            <span class="calendar-month-year" id="monthYear"></span>
+            <button class="calendar-nav-btn" id="nextMonth">→</button>
+          </div>
+          <button class="primary-btn" id="todayBtn">Today</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+
+      <div class="calendar-sidebar">
+        <h3 id="selectedDateTitle">Select a Date</h3>
+        <div class="event-form" id="eventForm" style="display:none;">
+          <input type="text" id="eventTitle" placeholder="Event Title (e.g., Doctor Visit)">
+          <select id="eventType">
+            <option value="clinic">🏥 Clinic Visit</option>
+            <option value="medication">💊 Medication</option>
+            <option value="symptom">🤒 Symptom</option>
+            <option value="other">📝 Other Note</option>
+          </select>
+          <textarea id="eventNotes" placeholder="Add notes about this event..."></textarea>
+          <button class="primary-btn" id="saveEventBtn">Save Event</button>
+          <button class="secondary-btn" id="cancelEventBtn">Cancel</button>
+        </div>
+        <div id="eventsList" class="events-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="notifications.js"></script>
+  <script>
+    // Require authentication
+    requireAuth().then(user => {
+      console.log("User authenticated:", user.uid);
+      initCalendar();
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    let currentDate = new Date();
+    let selectedDate = null;
+    let events = {};
+    let editingEvent = null; // Track which event is being edited {dateStr, index, id}
+
+    function initCalendar() {
+      renderCalendar();
+      loadEvents();
+
+      document.getElementById('prevMonth').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        renderCalendar();
+      });
+
+      document.getElementById('nextMonth').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar();
+      });
+
+      document.getElementById('todayBtn').addEventListener('click', () => {
+        currentDate = new Date();
+        selectedDate = new Date();
+        renderCalendar();
+        selectDate(selectedDate);
+      });
+
+      document.getElementById('saveEventBtn').addEventListener('click', saveEvent);
+      document.getElementById('cancelEventBtn').addEventListener('click', () => {
+        document.getElementById('eventForm').style.display = 'none';
+        document.getElementById('eventTitle').value = '';
+        document.getElementById('eventNotes').value = '';
+        selectedDate = null;
+        editingEvent = null; // Clear editing state
+      });
+    }
+
+    function renderCalendar() {
+      const monthYear = document.getElementById('monthYear');
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      monthYear.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      // Day headers
+      const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+      });
+
+      // Get first day of month and number of days
+      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const daysInMonth = lastDay.getDate();
+      const startingDayOfWeek = firstDay.getDay();
+
+      // Previous month days
+      const prevMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 0);
+      const prevMonthDays = prevMonth.getDate();
+      for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+        const day = document.createElement('div');
+        day.className = 'calendar-day other-month';
+        day.innerHTML = `<div class="calendar-day-number">${prevMonthDays - i}</div>`;
+        grid.appendChild(day);
+      }
+
+      // Current month days
+      const today = new Date();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const day = document.createElement('div');
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+        const dateStr = formatDate(date);
+        
+        let classes = 'calendar-day';
+        if (dateStr === formatDate(today)) {
+          classes += ' today';
+        }
+        if (events[dateStr] && events[dateStr].length > 0) {
+          classes += ' has-event';
+        }
+
+        day.className = classes;
+        day.innerHTML = `
+          <div class="calendar-day-number">${i}</div>
+          ${events[dateStr] && events[dateStr].length > 0 ? '<div class="calendar-event-dot"></div>' : ''}
+        `;
+        
+        day.addEventListener('click', () => selectDate(date));
+        grid.appendChild(day);
+      }
+
+      // Next month days
+      const remainingDays = 42 - (startingDayOfWeek + daysInMonth);
+      for (let i = 1; i <= remainingDays; i++) {
+        const day = document.createElement('div');
+        day.className = 'calendar-day other-month';
+        day.innerHTML = `<div class="calendar-day-number">${i}</div>`;
+        grid.appendChild(day);
+      }
+    }
+
+    function formatDate(date) {
+      return date.toISOString().split('T')[0];
+    }
+
+    function selectDate(date) {
+      selectedDate = date;
+      const dateStr = formatDate(date);
+      const dateTitle = document.getElementById('selectedDateTitle');
+      dateTitle.textContent = date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+
+      showEventsForDate(dateStr);
+      document.getElementById('eventForm').style.display = 'block';
+      document.getElementById('eventTitle').value = '';
+      document.getElementById('eventNotes').value = '';
+      document.getElementById('eventType').value = 'clinic';
+    }
+
+    function showEventsForDate(dateStr) {
+      const eventsList = document.getElementById('eventsList');
+      const dateEvents = events[dateStr] || [];
+
+      if (dateEvents.length === 0) {
+        eventsList.innerHTML = '<p style="color: #999; text-align: center;">No events for this date</p>';
+        return;
+      }
+
+      eventsList.innerHTML = dateEvents.map((event, index) => {
+        const typeClass = `event-type-${event.type}`;
+        const typeLabels = {
+          clinic: '🏥 Clinic',
+          medication: '💊 Medication',
+          symptom: '🤒 Symptom',
+          other: '📝 Note'
+        };
+        return `
+          <div class="event-item">
+            <div class="event-item-header">
+              <div>
+                <span class="event-type-badge ${typeClass}">${typeLabels[event.type]}</span>
+                <span class="event-item-title">${event.title}</span>
+              </div>
+              <div class="event-item-actions">
+                <button class="btn-small btn-edit" onclick="editEvent('${dateStr}', ${index})">Edit</button>
+                <button class="btn-small btn-delete" onclick="deleteEvent('${dateStr}', ${index})">Delete</button>
+              </div>
+            </div>
+            <div class="event-item-notes">${event.notes || 'No notes'}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function saveEvent() {
+      if (!selectedDate) {
+        alert('Please select a date first');
+        return;
+      }
+
+      const title = document.getElementById('eventTitle').value.trim();
+      if (!title) {
+        alert('Please enter an event title');
+        return;
+      }
+
+      const type = document.getElementById('eventType').value;
+      const notes = document.getElementById('eventNotes').value.trim();
+      const dateStr = formatDate(selectedDate);
+
+      const eventData = {
+        title,
+        type,
+        notes,
+        date: dateStr,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      // Show loading state
+      const saveBtn = document.querySelector('button[onclick="saveEvent()"]') || document.getElementById('saveEventBtn');
+      const originalText = saveBtn ? saveBtn.textContent : 'Save Event';
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ Saving...';
+      }
+
+      try {
+        const user = auth && auth.currentUser ? auth.currentUser : null;
+        
+        if (!user) {
+          throw new Error('Please login to save events');
+        }
+        
+        if (!db) {
+          throw new Error('Database not available');
+        }
+        
+        // If editing an existing event, update it
+        if (editingEvent && editingEvent.id) {
+          if (user) {
+            await db.collection("health_calendar").doc(editingEvent.id).update({
+              ...eventData,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }
+          
+          // Update local events object
+          const oldDateStr = editingEvent.dateStr;
+          const oldIndex = editingEvent.index;
+          
+          // Remove from old date if date changed
+          if (oldDateStr !== dateStr && events[oldDateStr]) {
+            events[oldDateStr].splice(oldIndex, 1);
+            if (events[oldDateStr].length === 0) {
+              delete events[oldDateStr];
+            }
+          }
+          
+          // Update or add to new date
+          if (!events[dateStr]) {
+            events[dateStr] = [];
+          }
+          
+          if (oldDateStr === dateStr) {
+            // Same date, update in place
+            events[dateStr][oldIndex] = {
+              ...eventData,
+              id: editingEvent.id
+            };
+          } else {
+            // Different date, add to new date
+            events[dateStr].push({
+              ...eventData,
+              id: editingEvent.id
+            });
+          }
+          
+          editingEvent = null; // Clear editing state
+        } else {
+          // Creating new event
+          if (user) {
+            const docRef = await db.collection("health_calendar").add({
+              userId: user.uid,
+              ...eventData
+            });
+            
+            if (!events[dateStr]) {
+              events[dateStr] = [];
+            }
+            events[dateStr].push({
+              ...eventData,
+              id: docRef.id
+            });
+          }
+        }
+
+        renderCalendar();
+        showEventsForDate(dateStr);
+        document.getElementById('eventTitle').value = '';
+        document.getElementById('eventNotes').value = '';
+        editingEvent = null; // Clear editing state
+        
+        // Show success message
+        if (saveBtn) {
+          saveBtn.textContent = '✅ Saved!';
+          setTimeout(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.disabled = false;
+          }, 2000);
+        }
+      } catch (error) {
+        alert('❌ Error saving event: ' + error.message);
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalText;
+        }
+      }
+    }
+
+    async function deleteEvent(dateStr, index) {
+      if (!confirm('Delete this event?')) return;
+
+      try {
+        const user = auth.currentUser;
+        const dateEvents = events[dateStr];
+        const event = dateEvents[index];
+
+        if (user && event.id) {
+          await db.collection("health_calendar").doc(event.id).delete();
+        }
+
+        events[dateStr].splice(index, 1);
+        if (events[dateStr].length === 0) {
+          delete events[dateStr];
+        }
+
+        renderCalendar();
+        showEventsForDate(dateStr);
+      } catch (error) {
+        alert('❌ Error deleting event: ' + error.message);
+      }
+    }
+
+    function editEvent(dateStr, index) {
+      const event = events[dateStr][index];
+      // Set editing state
+      editingEvent = {
+        dateStr: dateStr,
+        index: index,
+        id: event.id
+      };
+      // Populate form with event data
+      document.getElementById('eventTitle').value = event.title;
+      document.getElementById('eventType').value = event.type;
+      document.getElementById('eventNotes').value = event.notes || '';
+      // Scroll to form
+      document.getElementById('eventForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function loadEvents() {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const snapshot = await db.collection("health_calendar")
+          .where("userId", "==", user.uid)
+          .get();
+
+        events = {};
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const dateStr = data.date;
+          if (!events[dateStr]) {
+            events[dateStr] = [];
+          }
+          events[dateStr].push({
+            ...data,
+            id: doc.id
+          });
+        });
+
+        renderCalendar();
+      } catch (error) {
+        // Show error in calendar area
+        const calendarMain = document.querySelector('.calendar-main');
+        if (calendarMain) {
+          calendarMain.innerHTML = '<div class="error-message">❌ Error loading events. Please refresh the page.<br><small>' + error.message + '</small></div>';
+        }
+      }
+    }
+
+    // Make functions global for onclick handlers
+    window.editEvent = editEvent;
+    window.deleteEvent = deleteEvent;
+  </script>
+</body>
+</html>
+

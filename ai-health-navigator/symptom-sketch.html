@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Symptom Image Analysis - AI Health Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .option-tabs {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .tab-btn {
+      padding: 12px 24px;
+      border: 2px solid #1976d2;
+      background: white;
+      color: #1976d2;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+    .tab-btn.active {
+      background: #1976d2;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .image-preview-container {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .image-preview {
+      max-width: 100%;
+      max-height: 500px;
+      border: 2px solid #1976d2;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+    .camera-container {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+      position: relative;
+    }
+    #videoElement {
+      max-width: 100%;
+      max-height: 500px;
+      border: 2px solid #1976d2;
+      border-radius: 8px;
+      background: #000;
+    }
+    .camera-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 15px 0;
+    }
+    .file-upload-area {
+      border: 2px dashed #1976d2;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      margin: 20px 0;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .file-upload-area:hover {
+      background: #e3f2fd;
+      border-color: #0d47a1;
+    }
+    .file-upload-area.dragover {
+      background: #bbdefb;
+      border-color: #1976d2;
+    }
+    #fileInput {
+      display: none;
+    }
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="logo"><span class="material-icons">medical_services</span> AI Health Navigator</h1>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="symptom-checker.html">Symptom Checker</a>
+        <a href="symptom-sketch.html" class="active">Image Analysis</a>
+        <a href="voice-analysis.html">Voice Analysis</a>
+        <a href="calendar.html">Health Calendar</a>
+        <a href="campus-map.html">Campus Map</a>
+        <a href="health-todo.html">Mini-Doc</a>
+        <a href="dashboard.html">Dashboard</a>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h2><span class="material-icons">camera_alt</span> Symptom Image Analysis</h2>
+      <p>Upload an image or use your camera to show areas where you feel discomfort, pain, or stress. The AI will analyze it.</p>
+    </div>
+
+    <div class="card">
+      <div class="option-tabs">
+        <button class="tab-btn active" id="uploadTab"><span class="material-icons">folder</span> Upload Image</button>
+        <button class="tab-btn" id="cameraTab"><span class="material-icons">photo_camera</span> Live Camera</button>
+      </div>
+
+      <!-- Upload Image Tab -->
+      <div id="uploadContent" class="tab-content active">
+        <div class="file-upload-area" id="uploadArea">
+          <div class="upload-icon"><span class="material-icons">cloud_upload</span></div>
+          <h3>Click to upload or drag and drop</h3>
+          <p>Supported formats: JPG, PNG, WebP</p>
+          <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <div class="image-preview-container">
+          <img id="uploadPreview" class="image-preview" style="display:none;">
+        </div>
+        <div style="text-align: center; margin: 20px 0;">
+          <button id="analyzeUploadBtn" class="primary-btn" style="display:none;">Analyze Image</button>
+        </div>
+      </div>
+
+      <!-- Live Camera Tab -->
+      <div id="cameraContent" class="tab-content">
+        <div class="camera-container">
+          <video id="videoElement" autoplay playsinline style="display:none;"></video>
+          <canvas id="captureCanvas" style="display:none;"></canvas>
+        </div>
+        <div class="camera-controls">
+          <button id="startCameraBtn" class="primary-btn"><span class="material-icons">photo_camera</span> Start Camera</button>
+          <button id="captureBtn" class="primary-btn" style="display:none;"><span class="material-icons">camera_alt</span> Capture & Analyze</button>
+          <button id="stopCameraBtn" class="secondary-btn" style="display:none;"><span class="material-icons">stop</span> Stop Camera</button>
+        </div>
+        <div class="image-preview-container">
+          <img id="cameraPreview" class="image-preview" style="display:none;">
+        </div>
+      </div>
+
+      <div id="loading" class="loading" style="display:none;">Analyzing your image with AI...</div>
+      <div id="sketchResult" class="result-box"></div>
+    </div>
+
+    <div class="info-box">
+      <h3>ℹ️ How to use:</h3>
+      <ul>
+        <li><strong>Upload Image:</strong> Click the upload area or drag and drop an image file</li>
+        <li><strong>Live Camera:</strong> Click "Start Camera" to access your device camera, then capture a photo</li>
+        <li>Show areas where you feel discomfort, pain, or stress in the image</li>
+        <li>The AI will analyze the image and provide wellness insights</li>
+        <li>This is for general wellness guidance only, not medical diagnosis</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="notifications.js"></script>
+  <script>
+    // Require authentication
+    requireAuth().then(user => {
+      console.log("User authenticated:", user.uid);
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    // Tab switching
+    document.getElementById('uploadTab').addEventListener('click', () => {
+      document.getElementById('uploadTab').classList.add('active');
+      document.getElementById('cameraTab').classList.remove('active');
+      document.getElementById('uploadContent').classList.add('active');
+      document.getElementById('cameraContent').classList.remove('active');
+      stopCamera(); // Stop camera if running
+    });
+
+    document.getElementById('cameraTab').addEventListener('click', () => {
+      document.getElementById('cameraTab').classList.add('active');
+      document.getElementById('uploadTab').classList.remove('active');
+      document.getElementById('cameraContent').classList.add('active');
+      document.getElementById('uploadContent').classList.remove('active');
+    });
+
+    // Image upload functionality
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const uploadPreview = document.getElementById('uploadPreview');
+    const analyzeUploadBtn = document.getElementById('analyzeUploadBtn');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0 && files[0].type.startsWith('image/')) {
+        handleFileSelect(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    function handleFileSelect(file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        uploadPreview.src = e.target.result;
+        uploadPreview.style.display = 'block';
+        analyzeUploadBtn.style.display = 'inline-block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    analyzeUploadBtn.addEventListener('click', () => {
+      if (uploadPreview.src) {
+        analyzeImage(uploadPreview.src);
+      }
+    });
+
+    // Camera functionality
+    const videoElement = document.getElementById('videoElement');
+    const captureCanvas = document.getElementById('captureCanvas');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const startCameraBtn = document.getElementById('startCameraBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const stopCameraBtn = document.getElementById('stopCameraBtn');
+    let stream = null;
+
+    startCameraBtn.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
+        videoElement.srcObject = stream;
+        videoElement.style.display = 'block';
+        startCameraBtn.style.display = 'none';
+        captureBtn.style.display = 'inline-block';
+        stopCameraBtn.style.display = 'inline-block';
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        alert('Could not access camera. Please check permissions and try again.');
+      }
+    });
+
+    captureBtn.addEventListener('click', () => {
+      captureCanvas.width = videoElement.videoWidth;
+      captureCanvas.height = videoElement.videoHeight;
+      const ctx = captureCanvas.getContext('2d');
+      ctx.drawImage(videoElement, 0, 0);
+      
+      const imageData = captureCanvas.toDataURL('image/png');
+      cameraPreview.src = imageData;
+      cameraPreview.style.display = 'block';
+      
+      // Analyze the captured image
+      analyzeImage(imageData);
+    });
+
+    stopCameraBtn.addEventListener('click', stopCamera);
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      videoElement.srcObject = null;
+      videoElement.style.display = 'none';
+      startCameraBtn.style.display = 'inline-block';
+      captureBtn.style.display = 'none';
+      stopCameraBtn.style.display = 'none';
+      cameraPreview.style.display = 'none';
+    }
+
+    // Analyze image with AI
+    async function analyzeImage(imageData) {
+      const resultEl = document.getElementById('sketchResult');
+      const loadingEl = document.getElementById('loading');
+
+      // Show enhanced loading state
+      loadingEl.style.display = 'block';
+      loadingEl.innerHTML = '<div class="loading-spinner">⏳ Analyzing image with AI...</div>';
+      resultEl.innerHTML = '';
+      const analyzeBtn = document.getElementById('analyzeBtn');
+      if (analyzeBtn) {
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = 'Analyzing...';
+      }
+
+      try {
+        // Validate API key
+        if (!GEMINI_API_KEY || GEMINI_API_KEY.length < 20) {
+          throw new Error("API key not configured properly");
+        }
+
+        const user = auth && auth.currentUser ? auth.currentUser : null;
+        
+        const prompt = `You are a wellness assistant for students. A student has provided an image showing areas where they feel discomfort, pain, or stress.
+
+Analyze the image and provide:
+1. General interpretation of visible areas of concern
+2. Possible wellness insights (non-medical)
+3. Supportive advice
+4. When to consider professional help
+
+Rules:
+- Do NOT diagnose specific diseases
+- Do NOT mention specific medical conditions
+- Focus on general wellness and self-care
+- Be supportive and encouraging
+- Provide actionable wellness advice
+- If patterns suggest serious concerns, recommend professional consultation
+- If the image is unclear or doesn't show relevant health information, provide general wellness guidance
+
+Respond in a friendly, student-appropriate manner.`;
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt
+                  },
+                  {
+                    inline_data: {
+                      mime_type: "image/png",
+                      data: imageData.split(',')[1]
+                    }
+                  }
+                ]
+              }
+            ]
+          })
+        });
+
+        // Check response status first
+        if (!response.ok) {
+          let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error?.message || errorMsg;
+          } catch (e) {
+            // If JSON parsing fails, use status text
+          }
+          throw new Error("AI service error: " + errorMsg);
+        }
+
+        const data = await response.json();
+
+        // Handle API errors in response
+        if (data.error) {
+          throw new Error("AI service error: " + (data.error.message || "Unknown error"));
+        }
+
+        if (!data.candidates || !data.candidates.length) {
+          throw new Error("AI could not analyze the image");
+        }
+
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        resultEl.innerHTML = `<div class="success-message">${aiResponse.replace(/\n/g, '<br>')}</div>`;
+
+        // Save to Firestore (without imageData to avoid 1MB limit)
+        // Note: We don't save the full image as it can exceed Firestore's 1MB field limit
+        // The image is only used for the API call, not stored
+        if (user && db) {
+          try {
+            await db.collection("sketch_logs").add({
+              userId: user.uid,
+              aiResponse: aiResponse,
+              source: 'upload_or_camera',
+              imageSize: imageData.length, // Save size for reference
+              hasImage: true, // Flag to indicate image was analyzed
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } catch (dbError) {
+            // Continue even if Firestore save fails
+          }
+        }
+
+      } catch (error) {
+        resultEl.innerHTML = `<div class="error-message">❌ AI could not analyze your image right now.<br>${error.message}</div>`;
+      } finally {
+        loadingEl.style.display = 'none';
+        if (analyzeBtn) {
+          analyzeBtn.disabled = false;
+          analyzeBtn.textContent = 'Analyze Image';
+        }
+      }
+    }
+
+    // Cleanup camera on page unload
+    window.addEventListener('beforeunload', stopCamera);
+  </script>
+</body>
+</html>
